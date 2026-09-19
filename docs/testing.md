@@ -1,51 +1,116 @@
 # Testes
 
 Como preparar dependências, rodar a suíte e interpretar a bateria obrigatória
-(etapa 11 / ADR-019 / ADR-020) e a wave de stress (etapa 11b).
+(etapa 11 / ADR-019 / ADR-020), a wave de stress (etapa 11b) e o diferencial de
+carga.
 
-Guia de stress / fault / k6: [`docs/stress-tests.md`](./stress-tests.md).
+- Stress / fault: [`docs/stress-tests.md`](./stress-tests.md)
+- Carga (k6): [`docs/load-testing.md`](./load-testing.md)
 
-## Comandos
+## Roteiro do avaliador (checkout limpo)
+
+Ordem sugerida para reproduzir o que o CI e a validação manual cobrem. Todos os
+comandos partem da **raiz do repositório**.
+
+### 1. Subir o ambiente
 
 ```sh
-# Unitários rápidos (domínio, casos de uso, adapters sem containers)
+cp .env.example .env
+docker compose up --build -d
+```
+
+Ready (Linux/macOS: `curl -sf`; Windows: `curl.exe -sf`):
+
+```sh
+curl.exe -sf http://localhost:8080/health/ready
+```
+
+### 2. Bruno (contratos HTTP + Keycloak)
+
+Sem `make` no Windows:
+
+```powershell
+cd bruno
+npx --yes @usebruno/cli@latest run "01 - Health" "02 - Auth" "03 - Carteiras" "04 - Operacoes" "05 - Consultas" "06 - Autorizacao" --env Local
+```
+
+Se `Abrir carteira` retornar 409, o `playerId` do ambiente Local já existe —
+`docker compose down -v` e suba de novo, ou troque o `playerId` em
+`bruno/environments/Local.bru`.
+
+Com Make: `make bruno` (no Windows o `run .` do Makefile pode listar 0
+requests; prefira as pastas explícitas acima).
+
+### 3. Suíte automatizada (espelho do CI)
+
+```sh
+go vet ./...
+go test ./...
+```
+
+Cobertura 100% (PowerShell: aspas no `-coverprofile` / `-func`):
+
+```powershell
+go test "-coverprofile=coverage-domain.out" ./internal/domain/...
+go tool cover "-func=coverage-domain.out"
+go test "-coverprofile=coverage-app.out" ./internal/application/...
+go tool cover "-func=coverage-app.out"
+```
+
+Integração (testcontainers; `-race` nativo pode falhar no Windows sem CGO):
+
+```sh
+go test -tags=integration -count=1 ./tests/...
+# CI Linux: go test -tags=integration -race -count=1 ./tests/...
+```
+
+Race (Windows sem toolchain C):
+
+```powershell
+docker run --rm -v "${PWD}:/src" -w /src -e CGO_ENABLED=1 golang:1.27 go test -race ./...
+```
+
+### 4. Multi-instância, stress e fault
+
+```sh
+docker compose --profile stress up -d --build
+curl.exe -sf http://localhost:8090/health/ready
+go test -tags=stress -count=1 -timeout 20m ./tests/stress/...
+```
+
+Fault (Git Bash / WSL):
+
+```bash
+./tests/fault/run_smoke.sh
+FAULT_APPLY=1 ./tests/fault/run_smoke.sh
+```
+
+### 5. Carga (diferencial, opcional)
+
+Ver [`docs/load-testing.md`](./load-testing.md). Atalho Windows:
+
+```powershell
+.\scripts\run-load-test.ps1
+```
+
+## Comandos (resumo)
+
+```sh
 go test ./...
 go vet ./...
-
-# Detector de corridas (Linux/macOS com cgo; no Windows use o alvo Docker)
-go test -race ./...
-# ou: make test-race-docker
-
-# Gate de 100% no domínio e na aplicação
+go test -race ./...                 # ou Docker no Windows
 ./scripts/check-domain-coverage.sh ./internal/domain/... 100.0
 ./scripts/check-domain-coverage.sh ./internal/application/... 100.0
-
-# Integração com PostgreSQL real (testcontainers), inclui ST-02 repetido e ST-04 burst
 go test -tags=integration -race -count=1 ./tests/...
-
-# Auth real (Keycloak) + contratos HTTP — Compose + coleção Bruno
-docker compose up -d --build
-make bruno
-
-# Stress HTTP multi-instância (etapa 11b)
-make stress-up
-make stress
-make fault-tests
-# make load-test   # opcional, requer k6
+docker compose up -d --build && make bruno   # ou npx nas pastas Bruno
+docker compose --profile stress up -d --build
+go test -tags=stress -count=1 -timeout 20m ./tests/stress/...
+./scripts/run-load-test.sh          # ou scripts/run-load-test.ps1
 ```
 
 ## Cobertura (domínio e aplicação)
 
 Gate CI: **100.0%** em `./internal/domain/...` e `./internal/application/...`.
-
-Gerar relatório local:
-
-```sh
-go test -coverprofile=coverage-domain.out ./internal/domain/...
-go tool cover -func=coverage-domain.out
-go test -coverprofile=coverage-app.out ./internal/application/...
-go tool cover -func=coverage-app.out
-```
 
 Última medição na etapa 11: ambos os pacotes em **100.0%** de statements.
 
@@ -56,7 +121,7 @@ go tool cover -func=coverage-app.out
 | 1 | Mesma aposta 50× em paralelo | `TestSameBetSentFiftyTimesInParallelDebitsOnce` |
 | 2 | Duas apostas 80.00 sobre 100.00 | `TestTwoCompetingBetsLeaveOneProcessedAndOneRejected` |
 | 3 | Carteiras distintas em paralelo | `TestDistinctWalletsProcessInParallel` |
-| 4 | ≥ 3 instâncias independentes | `TestThreeIndependentInstancesShareIdempotency` (+ `make stress-up`) |
+| 4 | ≥ 3 instâncias independentes | `TestThreeIndependentInstancesShareIdempotency` (+ stress-up) |
 | 5 | Kill após commit, antes do delete SQS | `TestHandleWagerMessageRedeliveryDoesNotDoubleDebit` |
 | 6 | Dois publishers / lease expirado | `TestOutboxClaimIsExclusiveBetweenPublishers`, `TestOutboxExpiredLeaseIsReclaimedWithStableEventID` |
 | 7 | REFUND/ROLLBACK antes da referência | `TestPendingReferenceResolvesWhenBetArrivesLater`, `TestPendingReferenceExpiresAcrossWorkerRestarts` |
@@ -76,13 +141,8 @@ outbox após lease expirado. Idempotência e estado financeiro vivem no PostgreS
 ## Multi-instância local
 
 ```sh
-# Recomendado (3 APIs + nginx LB na :8090)
-make stress-up
-
-# Alternativa sem Compose profile
-docker compose up -d postgres keycloak localstack migrate
-make run-multi    # portas 8081, 8082, 8083
-make stop-multi
+docker compose --profile stress up -d --build
+# LB :8090 | APIs :8081 :8082 :8083
 ```
 
 ## Simulação de falha
@@ -96,6 +156,7 @@ Scripts em `tests/fault/` (ver `docs/stress-tests.md`):
 ./tests/fault/unpause_sqs.sh
 ./tests/fault/kill_consumer.sh
 ./tests/fault/kill_publisher.sh
+FAULT_APPLY=1 ./tests/fault/run_smoke.sh
 ```
 
 ## Auth

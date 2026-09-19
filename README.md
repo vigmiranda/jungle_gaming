@@ -167,15 +167,16 @@ go test -race ./...                 # ou: make test-race-docker
 go vet ./...
 make cover-domain                   # gate 100% domain + application
 go test -tags=integration -race -count=1 ./tests/...
-make bruno
+make bruno                          # Windows: ver docs/testing.md (pastas explícitas)
 
 # Stress (etapa 11b) — ambiente stress no ar
 make stress-up && make stress
 make fault-tests
-make load-test                      # opcional (k6)
+make load-test                      # diferencial k6 (scripts/run-load-test)
 ```
 
-Detalhes e mapeamento dos cenários: [`docs/testing.md`](docs/testing.md).
+Roteiro completo (inclui notas Windows): [`docs/testing.md`](docs/testing.md).  
+Carga formal: [`docs/load-testing.md`](docs/load-testing.md).
 
 ## Estrutura
 
@@ -190,7 +191,8 @@ Detalhes e mapeamento dos cenários: [`docs/testing.md`](docs/testing.md).
 | `tests/stress` | HTTP multi-instância (`-tags=stress`) |
 | `tests/fault` | Scripts de interrupção Compose |
 | `bruno/` | Coleção de validação manual |
-| `docs/` | Enunciado, testing, stress |
+| `docs/` | Enunciado, testing, stress, load-testing |
+| `loadtests/` | Scripts k6 (carga formal + smoke health) |
 | `ARCHITECTURE.md` | Decisões técnicas da solução |
 | `roadmap/` | Plano de execução e ADRs |
 
@@ -200,7 +202,9 @@ Detalhes e mapeamento dos cenários: [`docs/testing.md`](docs/testing.md).
   por padrão (ADR-012). Retomada coberta por inbox, outbox e `PENDING_REFERENCE`.
 - Operação principal apenas em **BRL** (o tipo carrega moeda; incompatibilidade é rejeitada).
 - Diferenciais não feitos (Wave 4): OpenTelemetry tracing, dashboards Grafana,
-  carga progressiva completa com relatório de percentis, partidas dobradas.
+  partidas dobradas.
+- Carga (diferencial): coberta por [`docs/load-testing.md`](docs/load-testing.md)
+  e `scripts/run-load-test` — rode localmente para gerar o relatório com percentis.
 - Estado `FAILED` de infra permanente existe no domínio; poison SQS sem linha
   persistida vai à DLQ (ADR-016).
 - Assinatura JWT/HMAC no envelope SQS fora do escopo (credencial do broker +

@@ -1,14 +1,15 @@
 # Stress, concorrência e recuperação (etapa 11b)
 
 Espelho operacional da especificação externa `STRESS_TESTS.md`. A bateria
-oficial da etapa 11 permanece em `docs/testing.md`; aqui está o que a 11b
-adiciona.
+oficial da etapa 11 permanece em [`docs/testing.md`](./testing.md); a carga
+formal (diferencial) em [`docs/load-testing.md`](./load-testing.md).
 
 ## Topologia
 
 ```sh
 docker compose --profile stress up -d --build
 # APIs: :8081 :8082 :8083  |  LB: :8090  |  Keycloak: :8088
+# Ready (Windows): curl.exe -sf http://localhost:8090/health/ready
 ```
 
 Variáveis do harness (`tests/stress`):
@@ -23,9 +24,16 @@ ST02_ROUNDS=20          # use 100 para a meta completa da spec
 ## Comandos
 
 ```sh
-make stress          # go test -tags=stress ./tests/stress/...
-make fault-tests     # smoke dos scripts em tests/fault/
-make load-test       # k6 progressive-load (opcional)
+go test -tags=stress -count=1 -timeout 20m ./tests/stress/...
+# ou: make stress
+
+./tests/fault/run_smoke.sh
+FAULT_APPLY=1 ./tests/fault/run_smoke.sh
+# ou: make fault-tests
+
+./scripts/run-load-test.sh          # Linux/macOS/Git Bash
+# Windows: .\scripts\run-load-test.ps1
+# ou: make load-test
 ```
 
 ## Matriz ST → evidência
@@ -37,7 +45,7 @@ make load-test       # k6 progressive-load (opcional)
 | ST-03 | `TestST03_…` |
 | ST-04 | `TestST04_…` + `TestST04HTTPAndSQSBurstConcurrent` |
 | ST-05 | `TestHandleWagerMessageRedeliveryDoesNotDoubleDebit` |
-| ST-06 | `make run-multi` / profile stress + reenvio manual; pendências na E11 |
+| ST-06 | profile stress + reenvio; pendências na E11 |
 | ST-07 | **N/A** (ADR-012) |
 | ST-08…10 | outbox integration + `tests/fault/kill_publisher.sh` |
 | ST-11/12 | `pending_reference_test` / reversal tests |
@@ -53,14 +61,13 @@ Scripts em `tests/fault/` localizam containers pelo nome (`api-a`, `postgres`,
 
 ```sh
 ./tests/fault/pause_postgres.sh && ./tests/fault/unpause_postgres.sh
-FAULT_APPLY=1 make fault-tests
+FAULT_APPLY=1 ./tests/fault/run_smoke.sh
 ```
 
-## k6 (opcional)
+No Windows use **Git Bash** ou WSL para os `.sh`.
 
-Pré-condições manuais (abrir carteira + token) e então:
+## k6
 
-```sh
-k6 run -e BASE_URL=http://localhost:8090 -e PROVIDER_TOKEN=... \
-  -e WALLET_ID=... -e PLAYER_ID=... loadtests/duplicate-bet.js
-```
+- Smoke health: `loadtests/progressive-load.js`
+- Carga formal (throughput, p50/p95/p99, erros, conflitos, outbox lag):
+  ver [`docs/load-testing.md`](./load-testing.md)
