@@ -90,8 +90,8 @@ func TestST02_TwoCompetingBetsRepeated(t *testing.T) {
 		extB := fmtRunExternal(h.runID, "st02-b-"+strconv.Itoa(round))
 
 		type outcome struct {
-			tx  txResponse
-			st  int
+			tx txResponse
+			st int
 		}
 		out := make([]outcome, 2)
 		start := make(chan struct{})

@@ -24,15 +24,15 @@ import (
 )
 
 type harness struct {
-	runID          string
-	baseURL        string
-	instances      []string
-	keycloakURL    string
-	providerToken  string
-	internalToken  string
-	providerID     string
-	client         *http.Client
-	roundRobin     int
+	runID         string
+	baseURL       string
+	instances     []string
+	keycloakURL   string
+	providerToken string
+	internalToken string
+	providerID    string
+	client        *http.Client
+	roundRobin    int
 }
 
 func newHarness(t *testing.T) *harness {
@@ -200,7 +200,7 @@ func (h *harness) openWallet(t *testing.T, balance string) (walletID, playerID s
 	t.Helper()
 	playerID = uuid.NewString()
 	payload := map[string]any{
-		"playerId": playerID,
+		"playerId":       playerID,
 		"initialBalance": moneyBody{Amount: balance, Currency: "BRL"},
 	}
 	var out walletResponse
