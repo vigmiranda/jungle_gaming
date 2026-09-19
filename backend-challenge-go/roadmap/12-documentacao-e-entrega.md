@@ -6,14 +6,14 @@ Permitir que outra pessoa reproduza a solução a partir de um checkout limpo e 
 
 ## Done when
 
-- [ ] `README.md` da solução completo
-- [ ] `ARCHITECTURE.md` com todas as decisões pedidas
-- [ ] `.env.example`
-- [ ] Compose + provisionamento automático do IdP e identidades de teste
-- [ ] Migrations com aplicação e reversão documentadas
-- [ ] Comandos oficiais funcionando
-- [ ] Coleção Bruno completa e documentada, cobrindo todas as rotas entregues (ADR-022)
-- [ ] Código `gofmt`; módulos reproduzíveis (`go.mod`/`go.sum`)
+- [x] `README.md` da solução completo
+- [x] `ARCHITECTURE.md` com todas as decisões pedidas
+- [x] `.env.example`
+- [x] Compose + provisionamento automático do IdP e identidades de teste
+- [x] Migrations com aplicação e reversão documentadas
+- [x] Comandos oficiais funcionando
+- [x] Coleção Bruno completa e documentada, cobrindo todas as rotas entregues (ADR-022)
+- [x] Código `gofmt`; módulos reproduzíveis (`go.mod`/`go.sum`)
 
 ## README da solução (conteúdo mínimo)
 
@@ -79,13 +79,13 @@ make load-test   # opcional (k6)
 
 ## Checklist final anti-eliminatória
 
-- [ ] Auth efetiva em endpoints de negócio
-- [ ] Sem float em dinheiro
-- [ ] Sem saldo negativo por concorrência
-- [ ] Sem movimentação duplicada
-- [ ] Idempotência persistente
-- [ ] Funciona com múltiplas instâncias
-- [ ] Sem publish antes do commit
-- [ ] Ledger auditável append-only
-- [ ] Testes com Postgres + SQS + IdP reais
-- [ ] Todo caso do enunciado tem teste correspondente (ADR-019)
+- [x] Auth efetiva em endpoints de negócio
+- [x] Sem float em dinheiro
+- [x] Sem saldo negativo por concorrência
+- [x] Sem movimentação duplicada
+- [x] Idempotência persistente
+- [x] Funciona com múltiplas instâncias
+- [x] Sem publish antes do commit
+- [x] Ledger auditável append-only
+- [x] Testes com Postgres + SQS + IdP reais
+- [x] Todo caso do enunciado tem teste correspondente (ADR-019)
