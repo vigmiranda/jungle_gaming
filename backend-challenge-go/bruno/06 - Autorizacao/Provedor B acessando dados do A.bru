@@ -1,0 +1,32 @@
+meta {
+  name: Provedor B acessando dados do A
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/providers/{{providerId}}/wagering/transactions/{{externalTransactionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{otherProviderToken}}
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Isolamento entre provedores: com o token do provedor B, a transação do provedor
+  A deve ser recusada com 403, sem vazar dados. O mesmo vale para replays.
+
+  Execute antes "Token do provedor B" para popular `otherProviderToken`.
+
+  Disponível a partir da etapa 6 do roadmap.
+}
+
+assert {
+  res.status: eq 403
+}

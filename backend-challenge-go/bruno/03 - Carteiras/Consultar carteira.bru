@@ -1,0 +1,25 @@
+meta {
+  name: Consultar carteira
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/wallets/{{walletId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{internalToken}}
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Saldo e versão atuais da carteira.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

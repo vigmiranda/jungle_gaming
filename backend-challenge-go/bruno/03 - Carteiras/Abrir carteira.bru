@@ -1,0 +1,44 @@
+meta {
+  name: Abrir carteira
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/wallets
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{internalToken}}
+}
+
+headers {
+  Content-Type: application/json
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "playerId": "{{playerId}}",
+    "initialBalance": { "amount": "1000.00", "currency": "BRL" }
+  }
+}
+
+vars:post-response {
+  walletId: res.body.id
+}
+
+docs {
+  Abertura de carteira, restrita ao serviço interno.
+
+  Saldo inicial positivo cria a transação `OPENING` em `PROCESSED`, o lançamento
+  de crédito e os eventos de outbox no mesmo commit, com a carteira na versão 1.
+  Saldo zero cria a carteira sem `OPENING`, sem ledger e sem eventos financeiros.
+  Repetir para o mesmo `(playerId, currency)` deve responder 409.
+
+  Guarda o identificador em `walletId` para as demais chamadas.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

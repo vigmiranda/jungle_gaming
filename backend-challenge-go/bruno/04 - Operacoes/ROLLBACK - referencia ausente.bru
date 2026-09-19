@@ -1,0 +1,48 @@
+meta {
+  name: ROLLBACK - referencia ausente
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/wagering/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{providerId}}:rollback-fora-de-ordem
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "providerId": "{{providerId}}",
+    "externalTransactionId": "rollback-fora-de-ordem",
+    "referenceExternalTransactionId": "aposta-que-ainda-nao-chegou",
+    "playerId": "{{playerId}}",
+    "walletId": "{{walletId}}",
+    "roundId": "{{roundId}}",
+    "gameId": "{{gameId}}",
+    "kind": "ROLLBACK",
+    "money": { "amount": "25.00", "currency": "BRL" }
+  }
+}
+
+docs {
+  Reversão que chega antes da transação referenciada.
+
+  Deve responder 202 com a operação em `PENDING_REFERENCE`, único estado não
+  terminal observável pela API (ADR-012). O worker de referências tenta resolver
+  com backoff exponencial e, esgotado o TTL, finaliza como `REJECTED` com
+  `REFERENCE_NOT_FOUND`.
+
+  Consulte a transação depois para acompanhar a resolução.
+
+  Disponível a partir da etapa 9 do roadmap.
+}

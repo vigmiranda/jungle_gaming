@@ -1,0 +1,26 @@
+meta {
+  name: Transacao por id interno
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/wagering/transactions/{{transactionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Acompanha o estado de uma operação, incluindo pendências e o `failureCode` de
+  rejeições.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

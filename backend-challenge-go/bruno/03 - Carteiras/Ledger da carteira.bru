@@ -1,0 +1,32 @@
+meta {
+  name: Ledger da carteira
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/wallets/{{walletId}}/ledger?limit=50
+  body: none
+  auth: bearer
+}
+
+params:query {
+  limit: 50
+  ~cursor: 
+}
+
+auth:bearer {
+  token: {{internalToken}}
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Lançamentos da carteira, paginados por cursor opaco com ordenação estável
+  (ADR-018). O parâmetro `cursor` está desabilitado por padrão: habilite-o
+  colando o cursor devolvido na página anterior.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

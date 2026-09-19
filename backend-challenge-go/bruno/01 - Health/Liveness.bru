@@ -1,0 +1,28 @@
+meta {
+  name: Liveness
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/health/live
+  body: none
+  auth: none
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Liveness do processo. Público, sem autenticação.
+
+  Responde 200 mesmo com PostgreSQL ou SQS indisponíveis: a distinção entre
+  "processo vivo" e "dependências prontas" é o que permite ao orquestrador
+  reiniciar só quando o processo realmente travou.
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+}

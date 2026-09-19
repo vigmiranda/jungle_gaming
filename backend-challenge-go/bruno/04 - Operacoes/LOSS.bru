@@ -1,0 +1,45 @@
+meta {
+  name: LOSS
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/wagering/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{providerId}}:loss-001
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "providerId": "{{providerId}}",
+    "externalTransactionId": "loss-001",
+    "playerId": "{{playerId}}",
+    "walletId": "{{walletId}}",
+    "roundId": "{{roundId}}",
+    "gameId": "{{gameId}}",
+    "kind": "LOSS",
+    "money": { "amount": "0.00", "currency": "BRL" }
+  }
+}
+
+docs {
+  Perda: sem movimentação financeira.
+
+  Exige `amount` exatamente `"0.00"` e a moeda da carteira. Não cria lançamento
+  no ledger nem incrementa a versão da carteira, mas produz o evento
+  `WagerTransactionProcessed` (sem `WalletBalanceChanged`). Qualquer valor
+  diferente de zero é rejeitado com `INVALID_AMOUNT`.
+
+  Disponível a partir da etapa 5 do roadmap.
+}
