@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vigmi/backend-challenge-go/internal/application/port"
 	"github.com/vigmi/backend-challenge-go/internal/application/usecase"
 	"github.com/vigmi/backend-challenge-go/internal/domain/money"
 	"github.com/vigmi/backend-challenge-go/internal/domain/wagering"
@@ -83,6 +84,10 @@ func TestOpenWalletWithPositiveBalance(t *testing.T) {
 		entry.BalanceAfter().String() != "1000.00" {
 		t.Errorf("lançamento = %s → %s", entry.BalanceBefore(), entry.BalanceAfter())
 	}
+	assertOutboxTypes(t, f.unitOfWork.state.outbox,
+		usecase.EventWagerTransactionProcessed,
+		usecase.EventWalletBalanceChanged,
+	)
 }
 
 // Saldo inicial zero não cria OPENING, ledger nem eventos financeiros.
@@ -99,6 +104,9 @@ func TestOpenWalletWithZeroBalance(t *testing.T) {
 	}
 	if len(f.unitOfWork.state.transactions) != 0 || len(f.unitOfWork.state.ledger) != 0 {
 		t.Error("saldo zero não deveria criar transação nem lançamento")
+	}
+	if len(f.unitOfWork.state.outbox) != 0 {
+		t.Error("saldo zero não deveria criar eventos de outbox")
 	}
 }
 
@@ -179,6 +187,14 @@ func TestOpenWalletRollsBackOnFailure(t *testing.T) {
 			name:  "falha ao gerar id do lançamento",
 			setup: func(f *fixture) { f.ids.failAfter = 3 },
 		},
+		{
+			name:  "falha ao gravar a outbox",
+			setup: func(f *fixture) { f.unitOfWork.state.outboxAppendErr = errors.New("falha simulada") },
+		},
+		{
+			name:  "falha ao gerar id do evento",
+			setup: func(f *fixture) { f.ids.failAfter = 4 },
+		},
 	}
 
 	for _, tt := range tests {
@@ -239,4 +255,38 @@ func TestOpenWalletPropagatesInfrastructureFailures(t *testing.T) {
 			t.Error("esperava erro")
 		}
 	})
+}
+
+func assertOutboxTypes(t *testing.T, records []port.OutboxRecord, types ...string) {
+	t.Helper()
+	if len(records) != len(types) {
+		t.Fatalf("outbox = %d eventos, esperados %d (%v)", len(records), len(types), types)
+	}
+	for index, want := range types {
+		if records[index].EventType != want {
+			t.Errorf("outbox[%d] = %s, esperado %s", index, records[index].EventType, want)
+		}
+		if records[index].ID.String() == "" || len(records[index].Payload) == 0 {
+			t.Errorf("outbox[%d] sem eventId ou payload", index)
+		}
+	}
+}
+
+func assertOutboxContains(t *testing.T, records []port.OutboxRecord, types ...string) {
+	t.Helper()
+	for _, want := range types {
+		if countOutboxType(records, want) == 0 {
+			t.Errorf("outbox sem evento %s", want)
+		}
+	}
+}
+
+func countOutboxType(records []port.OutboxRecord, eventType string) int {
+	count := 0
+	for _, record := range records {
+		if record.EventType == eventType {
+			count++
+		}
+	}
+	return count
 }

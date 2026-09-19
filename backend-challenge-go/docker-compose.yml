@@ -100,6 +100,12 @@ services:
       SQS_MAX_MESSAGES: "5"
       SQS_WAIT_TIME: 20s
       SQS_VISIBILITY_TIMEOUT: 30s
+      SQS_PUBLISHER_ENABLED: "true"
+      SQS_PUBLISHER_BATCH_SIZE: "10"
+      SQS_PUBLISHER_POLL_INTERVAL: 1s
+      SQS_PUBLISHER_LEASE_TTL: 30s
+      SQS_PUBLISHER_BACKOFF_BASE: 1s
+      SQS_PUBLISHER_BACKOFF_MAX: 1m
       WAGER_ALLOWED_PROVIDERS: provider-a,provider-b
       # O issuer é o hostname externo (o mesmo que aparece no `iss` do token),
       # enquanto o JWKS é buscado pelo nome interno do serviço.

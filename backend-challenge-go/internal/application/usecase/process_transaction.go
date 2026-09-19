@@ -436,6 +436,10 @@ func (uc *ProcessWagerTransaction) settle(
 		}
 	}
 
+	if err := appendProcessedEvents(ctx, repositories, uc.ids, transaction, applied, now); err != nil {
+		return TransactionResult{}, err
+	}
+
 	return TransactionResult{
 		TransactionID: transaction.ID(),
 		Status:        transaction.Status(),
@@ -461,6 +465,9 @@ func (uc *ProcessWagerTransaction) reject(
 	if err := repositories.Transactions().Create(ctx, transaction); err != nil {
 		return TransactionResult{}, err
 	}
+	if err := appendRejectedEvent(ctx, repositories, uc.ids, transaction, now); err != nil {
+		return TransactionResult{}, err
+	}
 
 	return TransactionResult{
 		TransactionID: transaction.ID(),
@@ -480,6 +487,9 @@ func (uc *ProcessWagerTransaction) markPending(
 		return TransactionResult{}, err
 	}
 	if err := repositories.Transactions().Create(ctx, transaction); err != nil {
+		return TransactionResult{}, err
+	}
+	if err := appendPendingReferenceEvent(ctx, repositories, uc.ids, transaction, now); err != nil {
 		return TransactionResult{}, err
 	}
 

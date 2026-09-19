@@ -56,6 +56,14 @@ func TestProcessBetDebitsWallet(t *testing.T) {
 	if entries := len(f.unitOfWork.state.ledger); entries != 2 {
 		t.Errorf("lançamentos = %d, esperados 2 (abertura e aposta)", entries)
 	}
+	assertOutboxContains(t, f.unitOfWork.state.outbox,
+		usecase.EventWagerTransactionProcessed,
+		usecase.EventWalletBalanceChanged,
+	)
+	// Abertura + aposta: 2 eventos cada.
+	if total := len(f.unitOfWork.state.outbox); total != 4 {
+		t.Errorf("outbox = %d eventos, esperados 4", total)
+	}
 }
 
 func TestProcessWinCreditsWallet(t *testing.T) {
@@ -100,6 +108,13 @@ func TestProcessLossDoesNotMoveBalance(t *testing.T) {
 	if stored.Version() != 1 {
 		t.Errorf("versão = %d, esperada 1 (LOSS não incrementa)", stored.Version())
 	}
+
+	if got := countOutboxType(f.unitOfWork.state.outbox, usecase.EventWagerTransactionProcessed); got != 2 {
+		t.Errorf("Processed na outbox = %d, esperado 2 (abertura + LOSS)", got)
+	}
+	if got := countOutboxType(f.unitOfWork.state.outbox, usecase.EventWalletBalanceChanged); got != 1 {
+		t.Errorf("BalanceChanged na outbox = %d, esperado 1 (só abertura)", got)
+	}
 }
 
 func TestProcessBetWithoutFundsIsRejectedAndPersisted(t *testing.T) {
@@ -128,6 +143,9 @@ func TestProcessBetWithoutFundsIsRejectedAndPersisted(t *testing.T) {
 	}
 	if !replay.IdempotentReplay || replay.FailureCode != wagering.FailureInsufficientFunds {
 		t.Errorf("replay = %+v", replay)
+	}
+	if got := countOutboxType(f.unitOfWork.state.outbox, usecase.EventWagerTransactionRejected); got != 1 {
+		t.Errorf("Rejected na outbox = %d, esperado 1", got)
 	}
 }
 
@@ -322,8 +340,9 @@ func TestProcessPropagatesInfrastructureFailures(t *testing.T) {
 		{"gravação da transação", func(f *fixture) { f.unitOfWork.state.transactionErr = failure }},
 		{"gravação do lançamento", func(f *fixture) { f.unitOfWork.state.ledgerAppendErr = failure }},
 		{"atualização do saldo", func(f *fixture) { f.unitOfWork.state.walletUpdateErr = failure }},
+		{"gravação da outbox", func(f *fixture) { f.unitOfWork.state.outboxAppendErr = failure }},
 		{"início da transação", func(f *fixture) { f.unitOfWork.beginErr = failure }},
-		{"geração de identificador", func(f *fixture) { f.ids.failAfter = 4 }},
+		{"geração de identificador", func(f *fixture) { f.ids.failAfter = f.ids.calls + 1 }},
 	}
 
 	for _, tt := range tests {
@@ -356,10 +375,38 @@ func TestProcessPropagatesFailureWhenPersistingTerminalStates(t *testing.T) {
 		}
 	})
 
+	t.Run("rejeição na outbox", func(t *testing.T) {
+		f := newFixture()
+		walletID := setupWallet(t, f, "10.00")
+		f.unitOfWork.state.outboxAppendErr = failure
+
+		_, err := f.process.Execute(context.Background(), betCommand(walletID, "transaction-1", "80.00"))
+
+		if !errors.Is(err, failure) {
+			t.Errorf("erro = %v, esperado a falha simulada", err)
+		}
+	})
+
 	t.Run("pendência de referência", func(t *testing.T) {
 		f := newFixture()
 		walletID := setupWallet(t, f, "1000.00")
 		f.unitOfWork.state.transactionErr = failure
+
+		command := betCommand(walletID, "rollback-1", "25.00")
+		command.Kind = "ROLLBACK"
+		command.ReferenceExternalTransactionID = "aposta-que-nao-chegou"
+
+		_, err := f.process.Execute(context.Background(), command)
+
+		if !errors.Is(err, failure) {
+			t.Errorf("erro = %v, esperado a falha simulada", err)
+		}
+	})
+
+	t.Run("pendência na outbox", func(t *testing.T) {
+		f := newFixture()
+		walletID := setupWallet(t, f, "1000.00")
+		f.unitOfWork.state.outboxAppendErr = failure
 
 		command := betCommand(walletID, "rollback-1", "25.00")
 		command.Kind = "ROLLBACK"
@@ -392,9 +439,8 @@ func TestProcessPropagatesOverflowOnCredit(t *testing.T) {
 func TestProcessPropagatesFailureGeneratingLedgerID(t *testing.T) {
 	f := newFixture()
 	walletID := setupWallet(t, f, "1000.00")
-	// A abertura consome três identificadores; a aposta consome o quarto para a
-	// transação e o quinto para o lançamento.
-	f.ids.failAfter = 5
+	// A aposta consome o próximo id para a transação e o seguinte para o lançamento.
+	f.ids.failAfter = f.ids.calls + 2
 
 	if _, err := f.process.Execute(context.Background(), betCommand(walletID, "transaction-1", "25.00")); err == nil {
 		t.Error("esperava erro")

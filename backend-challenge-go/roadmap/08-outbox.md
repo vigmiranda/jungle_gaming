@@ -6,15 +6,15 @@ Publicar eventos de integração **somente depois** do commit que os originou, c
 
 ## Done when
 
-- [ ] Registros de outbox gravados no mesmo commit do domínio
-- [ ] Worker publisher separado (Fx lifecycle)
-- [ ] Disputa segura entre publishers: `FOR UPDATE SKIP LOCKED` **+** lease com TTL (ADR-006)
-- [ ] Backoff e recuperação de trabalho abandonado (lease expirado volta a ser elegível)
-- [ ] `eventId` gerado no insert e estável em republicações (ADR-017)
-- [ ] `correlationId` propagado da borda até o envelope (ADR-017)
-- [ ] Destino provisionado: fila SQS de integração no LocalStack
-- [ ] Testes: interrupção entre commit e publish; entre publish e mark-published
-- [ ] Dois publishers disputando a mesma outbox
+- [x] Registros de outbox gravados no mesmo commit do domínio
+- [x] Worker publisher separado (Fx lifecycle)
+- [x] Disputa segura entre publishers: `FOR UPDATE SKIP LOCKED` **+** lease com TTL (ADR-006)
+- [x] Backoff e recuperação de trabalho abandonado (lease expirado volta a ser elegível)
+- [x] `eventId` gerado no insert e estável em republicações (ADR-017)
+- [x] `correlationId` propagado da borda até o envelope (ADR-017)
+- [x] Destino provisionado: fila SQS de integração no LocalStack
+- [x] Testes: interrupção entre commit e publish; entre publish e mark-published
+- [x] Dois publishers disputando a mesma outbox
 
 ## Eventos obrigatórios
 
@@ -67,9 +67,13 @@ Não reutilizar `transactionId` como `correlationId`: são papéis distintos (ne
 
 ## Destino de saída
 
-Fila SQS de integração provisionada no LocalStack (ADR-006 — sem SNS, para manter a stack mínima e testável). Documentar:
+Fila SQS de integração provisionada no LocalStack (ADR-006 — sem SNS, para manter a stack mínima e testável).
 
-- Nome da fila e provisionamento no Compose
-- Contrato de roteamento
-- Quem consome
-- Política de idempotência do consumidor externo (pelo menos pelo `eventId`)
+| Item | Valor |
+| --- | --- |
+| Nome | `wagering-integration-events` |
+| Provisionamento | `deploy/localstack/init-queues.sh` (Compose) |
+| URL local | `SQS_INTEGRATION_QUEUE_URL` |
+| Contrato | envelope JSON com `eventId` estável; consumidor externo idempotente por `eventId` |
+| Quem consome | sistemas de integração externos (fora deste serviço) |
+| Publisher | worker Fx `awssqs.Publisher` (`SQS_PUBLISHER_*`) |

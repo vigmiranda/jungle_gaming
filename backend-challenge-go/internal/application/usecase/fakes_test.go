@@ -82,6 +82,8 @@ type fakeState struct {
 	inboxFindErr      error
 	inboxRecordErr    error
 	inboxFindMisses   int
+	outbox            []port.OutboxRecord
+	outboxAppendErr   error
 }
 
 type walletRecord struct {
@@ -128,6 +130,7 @@ func (s *fakeState) clone() *fakeState {
 		transactions: make(map[string]*wagering.Transaction, len(s.transactions)),
 		ledger:       append([]ledger.Entry(nil), s.ledger...),
 		inbox:        make(map[string]port.InboxMessage, len(s.inbox)),
+		outbox:       append([]port.OutboxRecord(nil), s.outbox...),
 	}
 	for key, value := range s.wallets {
 		copied.wallets[key] = value
@@ -146,6 +149,7 @@ func (s *fakeState) restore(snapshot *fakeState) {
 	s.transactions = snapshot.transactions
 	s.ledger = snapshot.ledger
 	s.inbox = snapshot.inbox
+	s.outbox = snapshot.outbox
 }
 
 type fakeRepositories struct {
@@ -158,6 +162,29 @@ func (r *fakeRepositories) Transactions() port.TransactionRepository {
 }
 func (r *fakeRepositories) Ledger() port.LedgerRepository { return &fakeLedger{state: r.state} }
 func (r *fakeRepositories) Inbox() port.InboxRepository   { return &fakeInbox{state: r.state} }
+func (r *fakeRepositories) Outbox() port.OutboxRepository { return &fakeOutbox{state: r.state} }
+
+type fakeOutbox struct {
+	state *fakeState
+}
+
+func (r *fakeOutbox) Append(_ context.Context, record port.OutboxRecord) error {
+	if r.state.outboxAppendErr != nil {
+		return r.state.outboxAppendErr
+	}
+	r.state.outbox = append(r.state.outbox, record)
+	return nil
+}
+
+func (r *fakeOutbox) Claim(context.Context, string, int, time.Duration, time.Time) ([]port.OutboxRecord, error) {
+	return nil, nil
+}
+
+func (r *fakeOutbox) MarkPublished(context.Context, shared.ID, time.Time) error { return nil }
+
+func (r *fakeOutbox) ReleaseWithBackoff(context.Context, shared.ID, int, time.Time, time.Time) error {
+	return nil
+}
 
 type fakeInbox struct {
 	state *fakeState
