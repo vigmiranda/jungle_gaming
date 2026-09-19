@@ -75,6 +75,13 @@ func New() *Metrics {
 		m.reconciliation,
 		m.duration,
 	)
+	// Séries canônicas em zero: o scrape inicial expõe os nomes (Bruno/ops)
+	// antes do primeiro evento de negócio.
+	m.transactions.WithLabelValues("http", "PROCESSED")
+	m.replays.WithLabelValues("http")
+	m.retries.WithLabelValues("sqs")
+	m.conflicts.WithLabelValues("http")
+	m.duration.WithLabelValues("http")
 	return m
 }
 
