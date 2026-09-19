@@ -70,6 +70,7 @@ make migrate-down           # reverte a última (STEPS=0 reverte todas)
 | `migrations` | SQL versionado, embarcado no binário |
 | `tests/integration` | Testes com infraestrutura real (build tag `integration`) |
 | `bruno/` | Coleção de validação manual |
+| `docs/testing.md` | Como rodar testes, cobertura e os 8 cenários obrigatórios |
 | `roadmap/` | Plano de execução e ADRs |
 | `deploy/` | Realm do Keycloak e provisionamento das filas |
 

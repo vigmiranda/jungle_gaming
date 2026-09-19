@@ -1,0 +1,25 @@
+meta {
+  name: Ledger - cursor invalido
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/wallets/{{walletId}}/ledger?cursor=%25%25%25
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{internalToken}}
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Cursor opaco inválido deve responder 400 (ADR-018), sem efeito financeiro.
+}
+
+assert {
+  res.status: eq 400
+  res.body.error: eq invalid_cursor
+}

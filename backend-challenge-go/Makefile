@@ -70,7 +70,7 @@ fmt: ## Formata o código
 check: fmt vet test-race ## Formatação, análise estática e testes com -race
 
 # Três processos independentes com conexões e memória próprias, conforme ADR-020.
-# Usado nos cenários de concorrência e recuperação da etapa 11.
+# Detalhes e mapeamento dos 8 cenários: docs/testing.md
 run-multi: build ## Sobe três instâncias locais nas portas 8081, 8082 e 8083
 	HTTP_PORT=8081 ./bin/api & echo $$! > .pid-8081
 	HTTP_PORT=8082 ./bin/api & echo $$! > .pid-8082
