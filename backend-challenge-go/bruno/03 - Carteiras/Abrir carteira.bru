@@ -40,5 +40,11 @@ docs {
 
   Guarda o identificador em `walletId` para as demais chamadas.
 
-  Disponível a partir da etapa 5 do roadmap.
+  Disponível a partir da etapa 6 do roadmap.
+}
+
+assert {
+  res.status: eq 201
+  res.body.id: isString
+  res.body.version: eq 1
 }

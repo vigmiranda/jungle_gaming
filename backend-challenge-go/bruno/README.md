@@ -117,11 +117,10 @@ etapa do roadmap em que passa a funcionar.
 | --- | --- |
 | `01 - Health` | Funcionando (etapa 1) |
 | `02 - Auth` | Funcionando (etapa 1) |
-| `03 - Carteiras`, `04 - Operacoes`, `05 - Consultas` | Respondem 404 até a etapa 5 |
-| `06 - Autorizacao` | Responde 404 até a etapa 6 |
-
-As requisições ainda não atendidas já estão escritas com o contrato definido no
-desafio, então servem como especificação executável do que vem pela frente.
+| `03 - Carteiras` | Funcionando (etapa 6) |
+| `04 - Operacoes` | Funcionando (etapa 6) |
+| `05 - Consultas` | Funcionando (etapa 6) |
+| `06 - Autorizacao` | Funcionando (etapa 6) |
 
 ## Como adicionar uma requisição
 

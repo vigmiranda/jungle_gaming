@@ -11,6 +11,7 @@ import (
 
 	"github.com/vigmi/backend-challenge-go/internal/application/usecase"
 	"github.com/vigmi/backend-challenge-go/internal/config"
+	"github.com/vigmi/backend-challenge-go/internal/platform/auth"
 	"github.com/vigmi/backend-challenge-go/internal/platform/awssqs"
 	"github.com/vigmi/backend-challenge-go/internal/platform/clock"
 	"github.com/vigmi/backend-challenge-go/internal/platform/health"
@@ -34,6 +35,7 @@ func Module() fx.Option {
 		postgres.Module,
 		repository.Module,
 		awssqs.Module,
+		auth.Module,
 		usecase.Module,
 		httpserver.Module,
 		fx.WithLogger(func(log *slog.Logger) fxevent.Logger {

@@ -25,7 +25,7 @@ func testConfig(port int) config.Config {
 
 func newTestServer(t *testing.T, port int) *Server {
 	t.Helper()
-	router := NewRouter(discardLogger(), NewHealthHandler(health.NewChecker(nil)))
+	router := NewRouter(discardLogger(), NewHealthHandler(health.NewChecker(nil)), nil, nil, nil)
 	return NewServer(testConfig(port), discardLogger(), router)
 }
 

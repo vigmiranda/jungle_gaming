@@ -105,7 +105,15 @@ jobs:
       # implementadas. Ao concluir uma etapa, inclua a pasta correspondente.
       - name: Executar a coleção Bruno
         working-directory: backend-challenge-go/bruno
-        run: npx --yes @usebruno/cli@latest run "01 - Health" "02 - Auth" --env Local
+        run: >
+          npx --yes @usebruno/cli@latest run
+          "01 - Health"
+          "02 - Auth"
+          "03 - Carteiras"
+          "04 - Operacoes"
+          "05 - Consultas"
+          "06 - Autorizacao"
+          --env Local
 
       - name: Logs em caso de falha
         if: failure()

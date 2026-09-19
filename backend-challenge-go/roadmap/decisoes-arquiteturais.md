@@ -294,5 +294,10 @@ Status: `proposta` → `aceita` → `implementada` → `revisada`.
 | # | Questão | Quando decidir |
 | --- | --- | --- |
 | 1 | Valores concretos de TTL/max attempts da referência, visibility timeout e `maxReceiveCount` | Etapas 7 e 9, com base no tempo de processamento medido |
-| 2 | Política de leitura de `GET /wagering/transactions/:transactionId` para client de provedor (permitir só as próprias ou restringir ao serviço interno) | Etapa 6 |
-| 3 | Se `wallets`/`ledger` ficam exclusivamente internos ou expostos a provedores com filtro | Etapa 6 |
+
+## Decisões fechadas na etapa 6
+
+| # | Questão | Resolução |
+| --- | --- | --- |
+| 2 | `GET /wagering/transactions/:transactionId` para client de provedor | Permitido apenas para transações do próprio `providerId`; serviço interno vê todas |
+| 3 | `GET /wallets/:walletId` e ledger | Exclusivos do serviço interno |

@@ -8,27 +8,27 @@ Expor os contratos do item 9 do desafio com **IdP externo real** (Keycloak) e is
 
 ## Done when
 
-- [ ] Rotas HTTP implementadas em `chi`
-- [ ] Middleware de `correlationId` (usa header recebido ou gera UUID) propagando ao caso de uso
-- [ ] Validação JWT via JWKS do Keycloak
-- [ ] Provedores só acessam as próprias transações (inclui replay/consulta)
-- [ ] Operações de carteira internas restritas ao serviço interno
-- [ ] Códigos HTTP distinguíveis por situação
-- [ ] `GET /health/live` e `GET /health/ready` (Postgres + SQS)
-- [ ] Testes de integração: token ausente/inválido/expirado; isolamento entre provedores
-- [ ] Todas as rotas desta etapa presentes na coleção Bruno, com `make bruno` verde (ADR-022)
+- [x] Rotas HTTP implementadas em `chi`
+- [x] Middleware de `correlationId` (usa header recebido ou gera UUID) propagando ao caso de uso
+- [x] Validação JWT via JWKS do Keycloak
+- [x] Provedores só acessam as próprias transações (inclui replay/consulta)
+- [x] Operações de carteira internas restritas ao serviço interno
+- [x] Códigos HTTP distinguíveis por situação
+- [x] `GET /health/live` e `GET /health/ready` (Postgres + SQS)
+- [x] Testes de integração: token ausente/inválido/expirado; isolamento entre provedores
+- [x] Todas as rotas desta etapa presentes na coleção Bruno, com `make bruno` verde (ADR-022)
 
 ## Endpoints
 
 | Método | Rota | Quem |
 | --- | --- | --- |
 | `POST` | `/wallets` | serviço interno |
-| `GET` | `/wallets/:walletId` | interno / política documentada |
-| `GET` | `/wallets/:walletId/ledger?cursor=&limit=` | interno / política documentada |
-| `POST` | `/wallets/:walletId/reconciliation` | interno |
+| `GET` | `/wallets/:walletId` | serviço interno |
+| `GET` | `/wallets/:walletId/ledger?cursor=&limit=` | serviço interno |
+| `POST` | `/wallets/:walletId/reconciliation` | serviço interno |
 | `POST` | `/wagering/transactions` | provedor (próprio `providerId`) |
-| `GET` | `/wagering/transactions/:transactionId` | conforme política |
-| `GET` | `/providers/:providerId/wagering/transactions/:externalTransactionId` | provedor = path |
+| `GET` | `/wagering/transactions/:transactionId` | interno, ou provedor só das próprias |
+| `GET` | `/providers/:providerId/wagering/transactions/:externalTransactionId` | interno, ou provedor = path |
 | `GET` | `/health/live` | público |
 | `GET` | `/health/ready` | público |
 
@@ -60,6 +60,12 @@ Acesso não autorizado **não** pode gerar efeito financeiro nem vazar dados.
 
 Mapeamento fechado em ADR-013. Como o processamento é síncrono (ADR-012), `202` na prática ocorre apenas em reversão que chegou antes da referência — não existe "aceito, processo depois" para as demais operações.
 
+## Políticas de leitura (fechadas nesta etapa)
+
+- `GET /wallets/*` e ledger: **somente serviço interno**
+- `GET /wagering/transactions/:transactionId`: provedor vê apenas as próprias; interno vê todas
+- `GET /providers/:providerId/...`: path `providerId` deve coincidir com o token do provedor
+
 ## Provisionamento Keycloak
 
 - Realm + clients (`client_credentials`)
@@ -76,10 +82,3 @@ Mapeamento fechado em ADR-013. Como o processamento é síncrono (ADR-012), `202
 
 - Mensageria: credenciais e políticas do broker; domínio continua validando o `providerId` no consumidor (ADR-008).
 - Não implementar autenticação caseira (senha/token próprios).
-
-## A decidir nesta etapa
-
-- Se `GET /wagering/transactions/:transactionId` fica acessível ao client do provedor (filtrando pelas próprias transações) ou restrito ao serviço interno.
-- Se `GET /wallets/:walletId` e o ledger ficam exclusivamente internos ou expostos a provedores com filtro.
-
-Qualquer que seja a escolha, precisa de teste de isolamento provando que um provedor não vê dados de outro.

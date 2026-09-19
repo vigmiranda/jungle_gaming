@@ -44,5 +44,12 @@ docs {
   valor calculado. Sem saldo, a resposta é 422 com `failureCode:
   INSUFFICIENT_FUNDS`.
 
-  Disponível a partir da etapa 5 do roadmap.
+  Disponível a partir da etapa 6 do roadmap.
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq PROCESSED
+  res.body.transactionId: isString
+  res.body.idempotentReplay: eq false
 }
