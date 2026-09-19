@@ -8,16 +8,29 @@ Um único fluxo de aplicação para HTTP e SQS, com as mesmas garantias de idemp
 
 ## Done when
 
-- [ ] Abrir carteira (com e sem saldo inicial)
-- [ ] Processar BET / WIN / LOSS / REFUND / ROLLBACK
-- [ ] Replay idempotente (`idempotentReplay: true`) lendo `result_balance_*` / `result_payload`
-- [ ] Conflito: mesma chave, payload diferente
-- [ ] Conflito: mesmo `(providerId, externalTransactionId)` com outra chave
-- [ ] Hash canônico estrito, documentado e idêntico em HTTP e SQS
-- [ ] Reconciliação somente leitura
-- [ ] `PENDING_REFERENCE` quando a referência ainda não existe
-- [ ] 100% dos fluxos de decisão acima cobertos por teste (ADR-019)
-- [ ] Requisições correspondentes na coleção Bruno, com `make bruno` verde (ADR-022)
+- [x] Abrir carteira (com e sem saldo inicial)
+- [x] Processar BET / WIN / LOSS / REFUND / ROLLBACK
+- [x] Replay idempotente (`idempotentReplay: true`) lendo o resultado persistido
+- [x] Conflito: mesma chave, payload diferente
+- [x] Conflito: mesmo `(providerId, externalTransactionId)` com outra chave
+- [x] Hash canônico estrito, documentado e idêntico em HTTP e SQS
+- [x] Reconciliação somente leitura
+- [x] `PENDING_REFERENCE` quando a referência ainda não existe
+- [x] 100% dos fluxos de decisão acima cobertos por teste (ADR-019)
+- [ ] Requisições correspondentes na coleção Bruno — as rotas chegam na etapa 6
+
+## Notas de implementação
+
+| Item | Onde |
+| --- | --- |
+| Casos de uso | `internal/application/usecase` |
+| Hash canônico | SHA-256 sobre JSON com chaves ordenadas, em `idempotency.go` |
+| Relógio e identidade | Injetados por port, com implementação em `internal/platform/clock` |
+
+- **A ordem dentro da transação é deliberada:** o lock da carteira vem antes da checagem de idempotência. Duas entregas simultâneas da mesma operação se enfileiram, a segunda encontra o registro da primeira e devolve replay — sem depender de tratar violação de unicidade nem de repetir a transação.
+- Rejeições de negócio são **persistidas** como estado terminal, não desfeitas: o reenvio devolve a mesma recusa com o mesmo código.
+- Uma operação é revertida no máximo uma vez, por qualquer tipo. Só o índice por tipo deixaria um `REFUND` seguido de `ROLLBACK` devolver o mesmo débito duas vezes (ADR-010).
+- A reconciliação roda em transação somente leitura com `REPEATABLE READ`: saldo e ledger precisam vir da mesma visão, ou uma movimentação concorrente apareceria como divergência inexistente.
 
 ## Casos de uso
 

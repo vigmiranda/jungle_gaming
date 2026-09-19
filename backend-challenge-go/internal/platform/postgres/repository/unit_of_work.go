@@ -52,10 +52,32 @@ func (u *UnitOfWork) Execute(
 	return nil
 }
 
-// ReadOnly executa uma leitura fora da unidade de trabalho de escrita.
+// ExecuteReadOnly roda a função em uma transação somente leitura com
+// isolamento `REPEATABLE READ`.
 //
-// Consultas que não movimentam saldo não precisam de transação nem de lock, e
-// mantê-las fora evita segurar linhas por mais tempo que o necessário.
+// É o que dá à reconciliação uma visão única dos dados: sob `READ COMMITTED`,
+// ler o saldo e somar o ledger poderia pegar instantes diferentes e acusar
+// divergência onde não há.
+func (u *UnitOfWork) ExecuteReadOnly(
+	ctx context.Context,
+	fn func(ctx context.Context, repositories port.Repositories) error,
+) error {
+	transaction, err := u.pool.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel:   pgx.RepeatableRead,
+		AccessMode: pgx.ReadOnly,
+	})
+	if err != nil {
+		return fmt.Errorf("leitura consistente: não foi possível iniciar a transação: %w", err)
+	}
+	defer func() { _ = transaction.Rollback(ctx) }()
+
+	return fn(ctx, newRepositories(transaction))
+}
+
+// ReadOnly executa uma leitura avulsa fora de transação.
+//
+// Consultas de uma única linha não precisam de snapshot nem de lock, e
+// mantê-las fora evita segurar recursos por mais tempo que o necessário.
 func (u *UnitOfWork) ReadOnly() port.Repositories {
 	return newRepositories(u.pool)
 }

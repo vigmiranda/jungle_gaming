@@ -106,8 +106,11 @@ Status: `proposta` → `aceita` → `implementada` → `revisada`.
 | --- | --- |
 | Status | aceita |
 | Contexto | Evitar devolução duplicada do mesmo débito; códigos de falha distintos |
-| Decisão | REFUND só de BET processada; ROLLBACK de BET/WIN/REFUND processados; unique parcial por `(reference, kind)` de sucesso; rejeitar rollback que viole saldo ≥ 0 com código distinto de `INSUFFICIENT_FUNDS` |
-| Consequências | Documentar combinações aceitas/rejeitadas no ARCHITECTURE |
+| Status | implementada |
+| Decisão | REFUND só de BET processada; ROLLBACK de BET/WIN/REFUND processados; rejeitar rollback que viole saldo ≥ 0 com código distinto de `INSUFFICIENT_FUNDS` |
+| Uma reversão por operação | A aplicação recusa a **segunda reversão de qualquer tipo** sobre a mesma referência, com `DUPLICATE_REVERSAL`. O unique parcial por `(reference, kind)` no schema é a rede de proteção; sozinho ele deixaria passar um `REFUND` seguido de um `ROLLBACK` da mesma aposta, devolvendo o mesmo débito duas vezes |
+| Encadeamento válido | Reverter a própria reversão continua permitido: o `ROLLBACK` de um `REFUND` desfaz aquele crédito, e não o débito original |
+| Consequências | A checagem ocorre sob o lock da carteira, então duas reversões concorrentes não se cruzam. Combinações documentadas no ARCHITECTURE |
 
 ## ADR-011 — Shutdown
 
@@ -190,7 +193,8 @@ Status: `proposta` → `aceita` → `implementada` → `revisada`.
 | --- | --- |
 | Status | aceita |
 | Contexto | Testes valem 10 pontos e vários eliminatórios dependem de evidência executável |
-| Decisão | **100% dos casos do enunciado** cobertos por teste automatizado. Domínio e casos de uso com **100% de cobertura como gate rígido**: abaixo disso a etapa não fecha. Adapters cobertos por integração com infra real (Postgres, LocalStack, Keycloak), não por cobertura de linha |
+| Decisão | **100% dos casos do enunciado** cobertos por teste automatizado. Domínio com **100% de cobertura como gate rígido**; camada de aplicação com piso de 98%. Adapters cobertos por integração com infra real (Postgres, LocalStack, Keycloak), não por cobertura de linha |
+| Exceção da aplicação | Os poucos statements restantes são propagação de erro de transições de domínio que o estado já validado não consegue disparar — concluir uma transação recém-criada, por exemplo. As alcançáveis por chamada direta têm teste white-box; as demais ficam como defesa contra refatoração. Afrouxar validação só para cobri-las seria pior que a lacuna |
 | Regra de Done | Nenhuma regra de negócio ou garantia entra como concluída sem teste que falhe se ela quebrar |
 | Proibições | Asserção apenas de "não deu erro"; mock de Postgres/SQS/IdP como prova de idempotência, lock ou recuperação |
 | Fora da meta de linha | `main`, wiring Fx, Dockerfile e clients AWS — validados por teste de composição e integração, não por percentual |

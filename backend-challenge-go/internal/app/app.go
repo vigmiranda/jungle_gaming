@@ -9,8 +9,10 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
+	"github.com/vigmi/backend-challenge-go/internal/application/usecase"
 	"github.com/vigmi/backend-challenge-go/internal/config"
 	"github.com/vigmi/backend-challenge-go/internal/platform/awssqs"
+	"github.com/vigmi/backend-challenge-go/internal/platform/clock"
 	"github.com/vigmi/backend-challenge-go/internal/platform/health"
 	"github.com/vigmi/backend-challenge-go/internal/platform/httpserver"
 	"github.com/vigmi/backend-challenge-go/internal/platform/logging"
@@ -28,9 +30,11 @@ func Module() fx.Option {
 		config.Module,
 		logging.Module,
 		health.Module,
+		clock.Module,
 		postgres.Module,
 		repository.Module,
 		awssqs.Module,
+		usecase.Module,
 		httpserver.Module,
 		fx.WithLogger(func(log *slog.Logger) fxevent.Logger {
 			return &fxevent.SlogLogger{Logger: log}

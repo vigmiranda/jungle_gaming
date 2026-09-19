@@ -26,6 +26,8 @@ const (
 	FailureInvalidAmount FailureCode = "INVALID_AMOUNT"
 	// FailureCurrencyMismatch: moeda diferente da carteira.
 	FailureCurrencyMismatch FailureCode = "CURRENCY_MISMATCH"
+	// FailureWalletPlayerMismatch: carteira informada não pertence ao jogador.
+	FailureWalletPlayerMismatch FailureCode = "WALLET_PLAYER_MISMATCH"
 	// FailureOpeningNotAllowed: abertura solicitada por canal externo.
 	FailureOpeningNotAllowed FailureCode = "OPENING_NOT_ALLOWED"
 	// FailureInfrastructure: falha permanente de infraestrutura, registrada para
