@@ -17,6 +17,7 @@ var Module = fx.Module("usecase",
 		NewProcessWagerTransaction,
 		NewReconcileWallet,
 		NewHandleWagerMessageFromConfig,
+		NewResolvePendingReferencesFromConfig,
 	),
 )
 
@@ -36,4 +37,20 @@ func NewHandleWagerMessageFromConfig(
 		cfg.SQS.ConsumerName,
 		cfg.SQS.AllowedProviders,
 	)
+}
+
+// NewResolvePendingReferencesFromConfig adapta a política configurável.
+func NewResolvePendingReferencesFromConfig(
+	unitOfWork port.UnitOfWork,
+	clock port.Clock,
+	process *ProcessWagerTransaction,
+	cfg config.Config,
+) *ResolvePendingReferences {
+	return NewResolvePendingReferences(unitOfWork, clock, process, PendingReferencePolicy{
+		MaxAttempts: cfg.PendingReference.MaxAttempts,
+		TTL:         cfg.PendingReference.TTL,
+		BackoffBase: cfg.PendingReference.BackoffBase,
+		BackoffMax:  cfg.PendingReference.BackoffMax,
+		BatchSize:   cfg.PendingReference.BatchSize,
+	})
 }

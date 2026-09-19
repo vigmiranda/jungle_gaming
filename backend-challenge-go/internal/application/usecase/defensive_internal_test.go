@@ -74,6 +74,9 @@ func (noopTransactions) FindByExternalID(context.Context, string, string) (*wage
 func (noopTransactions) HasSuccessfulReversal(context.Context, shared.ID) (bool, error) {
 	return false, nil
 }
+func (noopTransactions) ClaimPendingReferences(context.Context, int, time.Time) ([]*wagering.Transaction, error) {
+	return nil, nil
+}
 
 type noopLedger struct{}
 

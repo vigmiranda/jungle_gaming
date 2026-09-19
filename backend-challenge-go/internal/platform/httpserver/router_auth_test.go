@@ -174,6 +174,9 @@ func (r authTestTransactions) FindByExternalID(_ context.Context, providerID, ex
 func (r authTestTransactions) HasSuccessfulReversal(context.Context, shared.ID) (bool, error) {
 	return false, nil
 }
+func (r authTestTransactions) ClaimPendingReferences(context.Context, int, time.Time) ([]*wagering.Transaction, error) {
+	return nil, nil
+}
 
 type authTestLedger struct{}
 

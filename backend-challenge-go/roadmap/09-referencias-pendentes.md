@@ -6,13 +6,24 @@ Tratar `REFUND`/`ROLLBACK` (e demais casos) que chegam **antes** da transação 
 
 ## Done when
 
-- [ ] Persistência de `PENDING_REFERENCE` com metadados de retry
-- [ ] Worker com backoff exponencial
-- [ ] Max attempts e/ou TTL configuráveis
-- [ ] Expiração → `REJECTED` + `REFERENCE_NOT_FOUND` + evento de rejeição
-- [ ] Política da referência aplicada conforme ADR-009 (esperar se não terminal; rejeitar se terminal não elegível)
-- [ ] Teste: REFUND/ROLLBACK antes da BET → resolve depois ou rejeita por expiração
-- [ ] Teste: restart com pendências → outra instância retoma
+- [x] Persistência de `PENDING_REFERENCE` com metadados de retry
+- [x] Worker com backoff exponencial
+- [x] Max attempts e/ou TTL configuráveis
+- [x] Expiração → `REJECTED` + `REFERENCE_NOT_FOUND` + evento de rejeição
+- [x] Política da referência aplicada conforme ADR-009 (esperar se não terminal; rejeitar se terminal não elegível)
+- [x] Teste: REFUND/ROLLBACK antes da BET → resolve depois ou rejeita por expiração
+- [x] Teste: restart com pendências → outra instância retoma
+
+## Calibração (configurável)
+
+| Parâmetro | Default | Env |
+| --- | --- | --- |
+| Max attempts | 10 | `PENDING_REFERENCE_MAX_ATTEMPTS` |
+| TTL | 5m | `PENDING_REFERENCE_TTL` |
+| Backoff base | 1s | `PENDING_REFERENCE_BACKOFF_BASE` |
+| Backoff max | 30s | `PENDING_REFERENCE_BACKOFF_MAX` |
+| Poll | 1s | `PENDING_REFERENCE_POLL_INTERVAL` |
+| Batch | 10 | `PENDING_REFERENCE_BATCH_SIZE` |
 
 ## Fluxo
 

@@ -318,10 +318,51 @@ func TestMarkPendingReferenceOnlyForReversals(t *testing.T) {
 	if reversal.Status() != wagering.PendingReference {
 		t.Errorf("Status = %q, esperado PENDING_REFERENCE", reversal.Status())
 	}
+	next, ok := reversal.NextRetryAt()
+	if !ok || !next.Equal(processedAt) {
+		t.Errorf("NextRetryAt = %v (%v), esperado %s", next, ok, processedAt)
+	}
+	if reversal.AttemptCount() != 0 {
+		t.Errorf("AttemptCount = %d, esperado 0", reversal.AttemptCount())
+	}
 
 	bet := newExternal(t, nil)
 	if err := bet.MarkPendingReference(processedAt); !errors.Is(err, wagering.ErrIllegalTransition) {
 		t.Errorf("erro = %v, esperado ErrIllegalTransition para BET", err)
+	}
+}
+
+func TestScheduleReferenceRetry(t *testing.T) {
+	reversal := newExternal(t, func(p *wagering.ExternalParams) {
+		p.Kind = wagering.Refund
+		p.ReferenceExternalID = "transaction-123"
+	})
+	if err := reversal.MarkPendingReference(processedAt); err != nil {
+		t.Fatal(err)
+	}
+
+	next := processedAt.Add(time.Second)
+	if err := reversal.ScheduleReferenceRetry(3, next, next); err != nil {
+		t.Fatal(err)
+	}
+	if reversal.AttemptCount() != 3 {
+		t.Errorf("attempts = %d", reversal.AttemptCount())
+	}
+	got, ok := reversal.NextRetryAt()
+	if !ok || !got.Equal(next) {
+		t.Errorf("next = %v (%v)", got, ok)
+	}
+
+	if err := reversal.ScheduleReferenceRetry(-1, next, next); !errors.Is(err, wagering.ErrInvalidTransactionState) {
+		t.Errorf("attempts negativos: %v", err)
+	}
+	if err := reversal.ScheduleReferenceRetry(1, time.Time{}, next); !errors.Is(err, wagering.ErrMissingField) {
+		t.Errorf("next zero: %v", err)
+	}
+
+	bet := newExternal(t, nil)
+	if err := bet.ScheduleReferenceRetry(1, next, next); !errors.Is(err, wagering.ErrIllegalTransition) {
+		t.Errorf("erro = %v", err)
 	}
 }
 
@@ -352,6 +393,9 @@ func TestPendingReferenceResolvesLater(t *testing.T) {
 	}
 	if reversal.Status() != wagering.Processed {
 		t.Errorf("Status = %q, esperado PROCESSED", reversal.Status())
+	}
+	if _, ok := reversal.NextRetryAt(); ok {
+		t.Error("next_retry_at deveria ser limpo no terminal")
 	}
 }
 

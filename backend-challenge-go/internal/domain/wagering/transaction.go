@@ -60,9 +60,11 @@ type Transaction struct {
 	gameID              string
 	referenceExternalID string
 
-	referenceID *shared.ID
-	failureCode FailureCode
-	result      *Result
+	referenceID  *shared.ID
+	failureCode  FailureCode
+	result       *Result
+	attemptCount int
+	nextRetryAt  *time.Time
 
 	createdAt time.Time
 	updatedAt time.Time
@@ -221,6 +223,7 @@ func (t *Transaction) MarkProcessed(result Result, now time.Time) error {
 		return err
 	}
 	t.result = &result
+	t.nextRetryAt = nil
 	return nil
 }
 
@@ -229,7 +232,31 @@ func (t *Transaction) MarkPendingReference(now time.Time) error {
 	if !t.kind.IsReversal() {
 		return ErrIllegalTransition.Messagef("%s não depende de referência", t.kind)
 	}
-	return t.transition(PendingReference, now)
+	if err := t.transition(PendingReference, now); err != nil {
+		return err
+	}
+	next := now.UTC()
+	t.nextRetryAt = &next
+	t.attemptCount = 0
+	return nil
+}
+
+// ScheduleReferenceRetry agenda a próxima tentativa do worker de referências.
+func (t *Transaction) ScheduleReferenceRetry(attempts int, nextAttemptAt, now time.Time) error {
+	if t.status != PendingReference {
+		return ErrIllegalTransition.Messagef("só PENDING_REFERENCE agenda retry, status=%s", t.status)
+	}
+	if attempts < 0 {
+		return ErrInvalidTransactionState.Messagef("attempt_count não pode ser negativo")
+	}
+	if nextAttemptAt.IsZero() || now.IsZero() {
+		return ErrMissingField.Messagef("instantes do retry são obrigatórios")
+	}
+	t.attemptCount = attempts
+	next := nextAttemptAt.UTC()
+	t.nextRetryAt = &next
+	t.updatedAt = now.UTC()
+	return nil
 }
 
 // Reject encerra a operação por regra de negócio.
@@ -241,6 +268,7 @@ func (t *Transaction) Reject(code FailureCode, now time.Time) error {
 		return err
 	}
 	t.failureCode = code
+	t.nextRetryAt = nil
 	return nil
 }
 
@@ -254,6 +282,7 @@ func (t *Transaction) Fail(code FailureCode, now time.Time) error {
 		return err
 	}
 	t.failureCode = code
+	t.nextRetryAt = nil
 	return nil
 }
 
@@ -309,6 +338,8 @@ type State struct {
 	ReferenceID         *shared.ID
 	FailureCode         FailureCode
 	Result              *Result
+	AttemptCount        int
+	NextRetryAt         *time.Time
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }
@@ -361,9 +392,19 @@ func Rehydrate(state State) (*Transaction, error) {
 		referenceID:         state.ReferenceID,
 		failureCode:         state.FailureCode,
 		result:              state.Result,
+		attemptCount:        state.AttemptCount,
+		nextRetryAt:         cloneTime(state.NextRetryAt),
 		createdAt:           state.CreatedAt.UTC(),
 		updatedAt:           state.UpdatedAt.UTC(),
 	}, nil
+}
+
+func cloneTime(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	copied := value.UTC()
+	return &copied
 }
 
 // requireOriginConsistency impede que metadados externos apareçam na origem
@@ -453,6 +494,17 @@ func (t *Transaction) Result() (Result, bool) {
 		return Result{}, false
 	}
 	return *t.result, true
+}
+
+// AttemptCount devolve quantas tentativas o worker já registrou.
+func (t *Transaction) AttemptCount() int { return t.attemptCount }
+
+// NextRetryAt devolve o instante da próxima tentativa, quando houver.
+func (t *Transaction) NextRetryAt() (time.Time, bool) {
+	if t.nextRetryAt == nil {
+		return time.Time{}, false
+	}
+	return *t.nextRetryAt, true
 }
 
 // CreatedAt devolve o instante de criação, em UTC.

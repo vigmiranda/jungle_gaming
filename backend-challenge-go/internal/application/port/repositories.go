@@ -110,6 +110,9 @@ type TransactionRepository interface {
 	FindByIdempotencyKey(ctx context.Context, providerID, idempotencyKey string) (*wagering.Transaction, error)
 	FindByExternalID(ctx context.Context, providerID, externalID string) (*wagering.Transaction, error)
 
+	// ClaimPendingReferences reserva pendências elegíveis com SKIP LOCKED.
+	ClaimPendingReferences(ctx context.Context, limit int, now time.Time) ([]*wagering.Transaction, error)
+
 	// HasSuccessfulReversal indica se a referência já recebeu qualquer reversão
 	// bem-sucedida, de qualquer tipo.
 	//
