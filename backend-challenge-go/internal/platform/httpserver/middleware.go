@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vigmi/backend-challenge-go/internal/platform/correlation"
+	"github.com/vigmi/backend-challenge-go/internal/platform/metrics"
 )
 
 // Correlation garante um identificador de rastreio por requisição, reaproveitando
@@ -47,9 +48,9 @@ func Recover(log *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// RequestLogger registra cada requisição em JSON. Requisições de health ficam em
-// nível debug para não poluir o log com as sondas do orquestrador.
-func RequestLogger(log *slog.Logger) func(http.Handler) http.Handler {
+// RequestLogger registra cada requisição em JSON. Requisições de health e
+// metrics ficam em nível debug para não poluir o log com as sondas.
+func RequestLogger(log *slog.Logger, met *metrics.Metrics) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -57,17 +58,23 @@ func RequestLogger(log *slog.Logger) func(http.Handler) http.Handler {
 
 			next.ServeHTTP(recorder, r)
 
+			elapsed := time.Since(start)
+			path := r.URL.Path
+			quiet := strings.HasPrefix(path, "/health") || path == "/metrics"
 			level := slog.LevelInfo
-			if strings.HasPrefix(r.URL.Path, "/health") {
+			if quiet {
 				level = slog.LevelDebug
 			}
 			log.Log(r.Context(), level, "http_request",
 				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
+				slog.String("path", path),
 				slog.Int("status", recorder.status),
-				slog.Duration("duration", time.Since(start)),
+				slog.Duration("duration", elapsed),
 				slog.String("correlationId", correlation.FromContext(r.Context())),
 			)
+			if met != nil && !quiet {
+				met.RecordProcessingDuration("http", elapsed.Seconds())
+			}
 		})
 	}
 }

@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,6 +11,7 @@ import (
 	"github.com/vigmi/backend-challenge-go/internal/application/usecase"
 	"github.com/vigmi/backend-challenge-go/internal/domain/shared"
 	"github.com/vigmi/backend-challenge-go/internal/domain/wallet"
+	"github.com/vigmi/backend-challenge-go/internal/platform/correlation"
 )
 
 // WalletHandler expõe as rotas de carteira, restritas ao serviço interno.
@@ -17,6 +19,8 @@ type WalletHandler struct {
 	open       *usecase.OpenWallet
 	reconcile  *usecase.ReconcileWallet
 	unitOfWork port.UnitOfWork
+	log        *slog.Logger
+	recorder   port.Recorder
 }
 
 // NewWalletHandler monta o handler de carteiras.
@@ -24,8 +28,16 @@ func NewWalletHandler(
 	open *usecase.OpenWallet,
 	reconcile *usecase.ReconcileWallet,
 	unitOfWork port.UnitOfWork,
+	log *slog.Logger,
+	recorder port.Recorder,
 ) *WalletHandler {
-	return &WalletHandler{open: open, reconcile: reconcile, unitOfWork: unitOfWork}
+	return &WalletHandler{
+		open:       open,
+		reconcile:  reconcile,
+		unitOfWork: unitOfWork,
+		log:        log,
+		recorder:   recorder,
+	}
 }
 
 type openWalletRequest struct {
@@ -138,6 +150,21 @@ func (h *WalletHandler) Reconcile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, err)
 		return
+	}
+
+	if !result.Consistent {
+		if h.recorder != nil {
+			h.recorder.RecordReconciliationDivergence()
+		}
+		if h.log != nil {
+			h.log.WarnContext(r.Context(), "reconciliation_divergence",
+				slog.String("correlationId", correlation.FromContext(r.Context())),
+				slog.String("walletId", walletID.String()),
+				slog.Bool("consistent", false),
+				slog.Int("checkedEntries", result.CheckedEntries),
+				slog.String("currency", result.StoredBalance.Currency().String()),
+			)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, mapReconciliation(result))

@@ -6,12 +6,12 @@ Tornar falhas e duplicatas diagnosticáveis em ambiente multi-instância, sem va
 
 ## Done when
 
-- [ ] Logs JSON estruturados
-- [ ] Campos de correlação quando disponíveis
-- [ ] Métricas listadas abaixo expostas
-- [ ] Health `live` / `ready` alinhados à realidade de Postgres e SQS
-- [ ] Reconciliação reporta divergência em log + métrica
-- [ ] Política de redaction documentada (sem credenciais, sem payload financeiro completo)
+- [x] Logs JSON estruturados
+- [x] Campos de correlação quando disponíveis
+- [x] Métricas listadas abaixo expostas
+- [x] Health `live` / `ready` alinhados à realidade de Postgres e SQS
+- [x] Reconciliação reporta divergência em log + métrica
+- [x] Política de redaction documentada (sem credenciais, sem payload financeiro completo)
 
 ## Logs
 
@@ -29,23 +29,38 @@ Incluir quando existirem:
 
 **Não** registrar: tokens, secrets, corpo financeiro completo da aposta.
 
+### Política de redaction
+
+Implementada em `internal/platform/logging` via `ReplaceAttr` do `slog`:
+
+| Redigido (`[redacted]`) | Mantido |
+| --- | --- |
+| `authorization`, `*token*`, `*secret*`, `password`, `api_key` | `correlationId`, `messageId`, `transactionId` |
+| `money`, `amount`, `payload`, `body`, `initialBalance` | `walletId`, `providerId`, `status`, `failureCode` |
+
 ## Métricas (mínimo)
+
+Expostas em `GET /metrics` (Prometheus text).
 
 | Métrica | Uso |
 | --- | --- |
-| Resultados por status | PROCESSED / REJECTED / PENDING_REFERENCE / FAILED — `REJECTED` (negócio) e `FAILED` (infra) contados separadamente (ADR-016) |
-| Duplicatas / replays | idempotência |
-| Retries | SQS, outbox, pending-reference |
-| DLQ count | veneno / esgotamento |
-| Conflitos de concorrência | lock/version/unique |
-| Atraso da outbox | lag entre `occurredAt` e publish |
-| Latência de processamento | HTTP e consumer |
-| Divergências de reconciliação | alerta de integridade |
+| `wagering_transactions_total{channel,status}` | PROCESSED / REJECTED / PENDING_REFERENCE / FAILED |
+| `wagering_idempotent_replays_total{channel}` | idempotência |
+| `wagering_retries_total{component}` | SQS, outbox, pending_reference |
+| `wagering_dlq_messages_total` | veneno / esgotamento |
+| `wagering_concurrency_conflicts_total{source}` | lock/version/unique |
+| `wagering_outbox_lag_seconds` | lag entre `occurredAt` e publish |
+| `wagering_processing_duration_seconds{channel}` | HTTP e consumer |
+| `wagering_reconciliation_divergences_total` | alerta de integridade |
 
 ## Health
 
 - `GET /health/live` — processo no ar
 - `GET /health/ready` — Postgres e SQS alcançáveis
+
+## Correlação SQS
+
+O consumidor lê `correlationId` do envelope; se ausente, reutiliza `messageId`; só gera UUID novo como último recurso (ADR-017).
 
 ## Diferenciais (opcional, se houver tempo)
 

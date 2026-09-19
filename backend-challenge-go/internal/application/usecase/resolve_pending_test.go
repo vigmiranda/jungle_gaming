@@ -34,7 +34,7 @@ func TestResolvePendingAppliesReversalAfterBetArrives(t *testing.T) {
 		BackoffBase: time.Second,
 		BackoffMax:  time.Minute,
 		BatchSize:   10,
-	})
+	}, nil)
 
 	processed, err := resolve.Tick(context.Background())
 	if err != nil {
@@ -72,7 +72,7 @@ func TestResolvePendingExpiresWithReferenceNotFound(t *testing.T) {
 		BackoffBase: time.Millisecond,
 		BackoffMax:  time.Millisecond,
 		BatchSize:   10,
-	})
+	}, nil)
 
 	if _, err := resolve.Tick(context.Background()); err != nil {
 		t.Fatalf("primeira tentativa: %v", err)
@@ -117,7 +117,7 @@ func TestResolvePendingExpiresByTTL(t *testing.T) {
 		BackoffBase: time.Second,
 		BackoffMax:  time.Minute,
 		BatchSize:   10,
-	})
+	}, nil)
 
 	f.clock.now = fixedNow.Add(2 * time.Minute)
 
@@ -151,7 +151,7 @@ func TestResolvePendingRejectsIneligibleReference(t *testing.T) {
 		MaxAttempts: 10,
 		TTL:         time.Hour,
 		BatchSize:   10,
-	})
+	}, nil)
 	if _, err := resolve.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestResolvePendingWaitsWhileReferenceStillPending(t *testing.T) {
 		BackoffBase: time.Second,
 		BackoffMax:  time.Minute,
 		BatchSize:   10,
-	})
+	}, nil)
 	if _, err := resolve.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestResolvePendingRejectsDuplicateReversal(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	if _, err := resolve.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestResolvePendingRejectsWhenReversalExceedsBalance(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	if _, err := resolve.Tick(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestResolvePendingPropagatesInfrastructureErrors(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	f.unitOfWork.state.walletLockErr = errors.New("lock fail")
 	if _, err := resolve.Tick(context.Background()); err == nil {
 		t.Fatal("esperava erro de lock")
@@ -289,7 +289,7 @@ func TestResolvePendingPropagatesClaimError(t *testing.T) {
 	f := newFixture()
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 5,
-	})
+	}, nil)
 	f.unitOfWork.state.claimPendingErr = errors.New("claim fail")
 	if _, err := resolve.Tick(context.Background()); err == nil {
 		t.Fatal("esperava erro no claim")
@@ -300,7 +300,7 @@ func TestResolvePendingTickWithEmptyQueue(t *testing.T) {
 	f := newFixture()
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 5,
-	})
+	}, nil)
 	processed, err := resolve.Tick(context.Background())
 	if err != nil || processed != 0 {
 		t.Fatalf("processed=%d err=%v", processed, err)
@@ -321,7 +321,7 @@ func TestResolvePendingTickFillsBatch(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BackoffBase: time.Second, BackoffMax: time.Minute, BatchSize: 1,
-	})
+	}, nil)
 	n, err := resolve.Tick(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -341,7 +341,7 @@ func TestResolvePendingPropagatesUpdateFailureOnReject(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 1, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	f.unitOfWork.state.transactionErr = errors.New("update fail")
 	if _, err := resolve.Tick(context.Background()); err == nil {
 		t.Fatal("esperava erro ao rejeitar por expiração")
@@ -361,7 +361,7 @@ func TestResolvePendingPropagatesReversalCheckError(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	f.unitOfWork.state.reversalCheckErr = errors.New("check fail")
 	if _, err := resolve.Tick(context.Background()); err == nil {
 		t.Fatal("esperava erro na checagem de reversão")
@@ -381,7 +381,7 @@ func TestResolvePendingPropagatesUpdateFailureOnSettle(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	f.unitOfWork.state.transactionErr = errors.New("update fail")
 	if _, err := resolve.Tick(context.Background()); err == nil {
 		t.Fatal("esperava erro ao confirmar PROCESSED")
@@ -401,7 +401,7 @@ func TestResolvePendingPropagatesLedgerFailureOnSettle(t *testing.T) {
 
 	resolve := usecase.NewResolvePendingReferences(f.unitOfWork, f.clock, f.process, usecase.PendingReferencePolicy{
 		MaxAttempts: 10, TTL: time.Hour, BatchSize: 10,
-	})
+	}, nil)
 	f.unitOfWork.state.ledgerAppendErr = errors.New("ledger fail")
 	if _, err := resolve.Tick(context.Background()); err == nil {
 		t.Fatal("esperava erro no ledger")
@@ -417,7 +417,7 @@ func TestNewResolvePendingReferencesFromConfig(t *testing.T) {
 			BackoffMax:  5 * time.Second,
 			BatchSize:   4,
 		},
-	})
+	}, nil)
 	if uc == nil {
 		t.Fatal("nil")
 	}

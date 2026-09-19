@@ -94,7 +94,7 @@ func TestRequestLoggerRecordsStatusAndCorrelation(t *testing.T) {
 	var logged strings.Builder
 	logger := slog.New(slog.NewJSONHandler(&logged, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	handler := Correlation(RequestLogger(logger)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Correlation(RequestLogger(logger, nil)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 	})))
 
@@ -114,7 +114,7 @@ func TestRequestLoggerUsesDebugForHealthChecks(t *testing.T) {
 	var logged strings.Builder
 	logger := slog.New(slog.NewJSONHandler(&logged, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	handler := RequestLogger(logger)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	handler := RequestLogger(logger, nil)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/health/ready", nil))
 
 	if logged.Len() != 0 {

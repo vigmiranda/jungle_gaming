@@ -45,6 +45,7 @@ func NewResolvePendingReferencesFromConfig(
 	clock port.Clock,
 	process *ProcessWagerTransaction,
 	cfg config.Config,
+	recorder port.Recorder,
 ) *ResolvePendingReferences {
 	return NewResolvePendingReferences(unitOfWork, clock, process, PendingReferencePolicy{
 		MaxAttempts: cfg.PendingReference.MaxAttempts,
@@ -52,5 +53,5 @@ func NewResolvePendingReferencesFromConfig(
 		BackoffBase: cfg.PendingReference.BackoffBase,
 		BackoffMax:  cfg.PendingReference.BackoffMax,
 		BatchSize:   cfg.PendingReference.BatchSize,
-	})
+	}, recorder)
 }

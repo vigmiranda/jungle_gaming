@@ -27,7 +27,7 @@ func TestPendingReferenceResolvesWhenBetArrivesLater(t *testing.T) {
 		BackoffBase: time.Millisecond,
 		BackoffMax:  time.Second,
 		BatchSize:   10,
-	})
+	}, nil)
 
 	opened, err := open.Execute(ctx, usecase.OpenWalletCommand{
 		PlayerID:       newID(t).String(),
@@ -140,7 +140,7 @@ func TestPendingReferenceExpiresAcrossWorkerRestarts(t *testing.T) {
 	}
 
 	// Primeira instância agenda retry e "morre".
-	first := usecase.NewResolvePendingReferences(uow, fixed, process, policy)
+	first := usecase.NewResolvePendingReferences(uow, fixed, process, policy, nil)
 	if _, err := first.Tick(ctx); err != nil {
 		t.Fatalf("primeiro worker: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestPendingReferenceExpiresAcrossWorkerRestarts(t *testing.T) {
 
 	// Segunda instância retoma após o backoff.
 	fixed.now = next.Add(time.Millisecond)
-	second := usecase.NewResolvePendingReferences(uow, fixed, process, policy)
+	second := usecase.NewResolvePendingReferences(uow, fixed, process, policy, nil)
 	if _, err := second.Tick(ctx); err != nil {
 		t.Fatalf("segundo worker: %v", err)
 	}

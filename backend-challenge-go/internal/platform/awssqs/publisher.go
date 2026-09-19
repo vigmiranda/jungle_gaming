@@ -37,11 +37,12 @@ func (s sqsIntegrationSender) Send(ctx context.Context, queueURL string, body []
 // Publisher reivindica lotes da outbox, publica na fila de integração e
 // confirma ou reagenda com backoff (ADR-006).
 type Publisher struct {
-	uow    port.UnitOfWork
-	clock  port.Clock
-	sender IntegrationSender
-	log    *slog.Logger
-	cfg    config.SQS
+	uow      port.UnitOfWork
+	clock    port.Clock
+	sender   IntegrationSender
+	log      *slog.Logger
+	cfg      config.SQS
+	recorder port.Recorder
 
 	publisherID string
 	cancel      context.CancelFunc
@@ -58,8 +59,9 @@ func NewPublisher(
 	clock port.Clock,
 	log *slog.Logger,
 	cfg config.Config,
+	recorder port.Recorder,
 ) *Publisher {
-	return newPublisher(sqsIntegrationSender{client: client}, uow, clock, log, cfg.SQS)
+	return newPublisher(sqsIntegrationSender{client: client}, uow, clock, log, cfg.SQS, recorder)
 }
 
 // NewPublisherForTest monta o publisher com destino injetável (integração).
@@ -69,8 +71,9 @@ func NewPublisherForTest(
 	clock port.Clock,
 	log *slog.Logger,
 	cfg config.SQS,
+	recorder port.Recorder,
 ) *Publisher {
-	return newPublisher(sender, uow, clock, log, cfg)
+	return newPublisher(sender, uow, clock, log, cfg, recorder)
 }
 
 func newPublisher(
@@ -79,6 +82,7 @@ func newPublisher(
 	clock port.Clock,
 	log *slog.Logger,
 	cfg config.SQS,
+	recorder port.Recorder,
 ) *Publisher {
 	return &Publisher{
 		uow:         uow,
@@ -86,6 +90,7 @@ func newPublisher(
 		sender:      sender,
 		log:         log,
 		cfg:         cfg,
+		recorder:    recorder,
 		publisherID: resolvePublisherID(cfg.PublisherID),
 	}
 }
@@ -232,6 +237,9 @@ func (p *Publisher) tick(ctx context.Context) (int, error) {
 
 func (p *Publisher) publishOne(ctx context.Context, record port.OutboxRecord) error {
 	msgCtx := correlation.WithID(ctx, record.CorrelationID)
+	if !record.OccurredAt.IsZero() && p.recorder != nil {
+		p.recorder.RecordOutboxLag(p.clock.Now().UTC().Sub(record.OccurredAt.UTC()).Seconds())
+	}
 	if err := p.sender.Send(msgCtx, p.cfg.IntegrationQueueURL, record.Payload); err != nil {
 		return p.releaseAfterFailure(msgCtx, record, err)
 	}
@@ -262,6 +270,10 @@ func (p *Publisher) releaseAfterFailure(ctx context.Context, record port.OutboxR
 	now := p.clock.Now().UTC()
 	attempts := record.Attempts + 1
 	next := now.Add(backoffDuration(attempts, p.cfg.PublisherBackoffBase, p.cfg.PublisherBackoffMax))
+
+	if p.recorder != nil {
+		p.recorder.RecordRetry("outbox")
+	}
 
 	releaseErr := p.uow.Execute(ctx, func(ctx context.Context, repositories port.Repositories) error {
 		return repositories.Outbox().ReleaseWithBackoff(ctx, record.ID, attempts, next, now)

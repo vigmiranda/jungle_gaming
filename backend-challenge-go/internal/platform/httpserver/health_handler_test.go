@@ -14,7 +14,7 @@ import (
 func TestLiveAlwaysReportsOK(t *testing.T) {
 	router := NewRouter(discardLogger(), NewHealthHandler(health.NewChecker([]health.Probe{
 		health.NewProbe("postgres", func(context.Context) error { return errors.New("fora do ar") }),
-	})), nil, nil, nil)
+	})), nil, nil, nil, nil)
 
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health/live", nil))
@@ -39,7 +39,7 @@ func TestReadyReportsOKWhenDependenciesRespond(t *testing.T) {
 	router := NewRouter(discardLogger(), NewHealthHandler(health.NewChecker([]health.Probe{
 		health.NewProbe("postgres", func(context.Context) error { return nil }),
 		health.NewProbe("sqs", func(context.Context) error { return nil }),
-	})), nil, nil, nil)
+	})), nil, nil, nil, nil)
 
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
@@ -61,7 +61,7 @@ func TestReadyReportsUnavailableWhenDependencyFails(t *testing.T) {
 	router := NewRouter(discardLogger(), NewHealthHandler(health.NewChecker([]health.Probe{
 		health.NewProbe("postgres", func(context.Context) error { return nil }),
 		health.NewProbe("sqs", func(context.Context) error { return errors.New("fila inacessível") }),
-	})), nil, nil, nil)
+	})), nil, nil, nil, nil)
 
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health/ready", nil))

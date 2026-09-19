@@ -196,7 +196,7 @@ func TestPublisherPublishesAndMarks(t *testing.T) {
 	outbox := newMemoryOutbox(record)
 	sender := &captureSender{}
 	clock := &memoryClock{now: record.OccurredAt}
-	publisher := newPublisher(sender, memoryUoW{outbox: outbox}, clock, slog.Default(), testPublisherConfig())
+	publisher := newPublisher(sender, memoryUoW{outbox: outbox}, clock, slog.Default(), testPublisherConfig(), nil)
 
 	published, err := publisher.Tick(context.Background())
 	if err != nil {
@@ -219,7 +219,7 @@ func TestPublisherReleasesWithBackoffOnSendFailure(t *testing.T) {
 	outbox := newMemoryOutbox(record)
 	sender := &captureSender{err: errors.New("broker down")}
 	clock := &memoryClock{now: record.OccurredAt}
-	publisher := newPublisher(sender, memoryUoW{outbox: outbox}, clock, slog.Default(), testPublisherConfig())
+	publisher := newPublisher(sender, memoryUoW{outbox: outbox}, clock, slog.Default(), testPublisherConfig(), nil)
 
 	published, err := publisher.Tick(context.Background())
 	if err != nil {
@@ -250,7 +250,7 @@ func TestPublisherRepublishesSameEventIDAfterAbandonedLease(t *testing.T) {
 	cfg := testPublisherConfig()
 
 	firstSender := &captureSender{}
-	first := newPublisher(firstSender, memoryUoW{outbox: outbox}, clock, slog.Default(), cfg)
+	first := newPublisher(firstSender, memoryUoW{outbox: outbox}, clock, slog.Default(), cfg, nil)
 	// Simula kill entre publish e mark: claim + send, sem MarkPublished.
 	claimed, err := outbox.Claim(context.Background(), first.PublisherID(), 1, cfg.PublisherLeaseTTL, clock.now)
 	if err != nil || len(claimed) != 1 {
@@ -264,7 +264,7 @@ func TestPublisherRepublishesSameEventIDAfterAbandonedLease(t *testing.T) {
 	secondCfg := cfg
 	secondCfg.PublisherID = "publisher-b"
 	secondSender := &captureSender{}
-	second := newPublisher(secondSender, memoryUoW{outbox: outbox}, clock, slog.Default(), secondCfg)
+	second := newPublisher(secondSender, memoryUoW{outbox: outbox}, clock, slog.Default(), secondCfg, nil)
 	published, err := second.Tick(context.Background())
 	if err != nil {
 		t.Fatal(err)

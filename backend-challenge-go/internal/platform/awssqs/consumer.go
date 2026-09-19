@@ -2,6 +2,7 @@ package awssqs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"strconv"
@@ -13,8 +14,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"go.uber.org/fx"
 
+	"github.com/vigmi/backend-challenge-go/internal/application/port"
 	"github.com/vigmi/backend-challenge-go/internal/application/usecase"
 	"github.com/vigmi/backend-challenge-go/internal/config"
+	"github.com/vigmi/backend-challenge-go/internal/domain/shared"
 	"github.com/vigmi/backend-challenge-go/internal/platform/correlation"
 )
 
@@ -26,14 +29,15 @@ type MessageHandler interface {
 // Consumer faz long-poll da fila FIFO, processa com inbox e remove só após
 // commit durável (ADR-008, ADR-016).
 type Consumer struct {
-	client  *sqs.Client
-	handler MessageHandler
-	log     *slog.Logger
-	cfg     config.SQS
-	cancel  context.CancelFunc
-	done    sync.WaitGroup
-	running bool
-	mu      sync.Mutex
+	client   *sqs.Client
+	handler  MessageHandler
+	log      *slog.Logger
+	cfg      config.SQS
+	recorder port.Recorder
+	cancel   context.CancelFunc
+	done     sync.WaitGroup
+	running  bool
+	mu       sync.Mutex
 }
 
 // NewConsumer monta o worker. Com ConsumerEnabled=false, o lifecycle não inicia
@@ -43,12 +47,14 @@ func NewConsumer(
 	handler *usecase.HandleWagerMessage,
 	log *slog.Logger,
 	cfg config.Config,
+	recorder port.Recorder,
 ) *Consumer {
 	return &Consumer{
-		client:  client,
-		handler: handler,
-		log:     log,
-		cfg:     cfg.SQS,
+		client:   client,
+		handler:  handler,
+		log:      log,
+		cfg:      cfg.SQS,
+		recorder: recorder,
 	}
 }
 
@@ -161,19 +167,41 @@ func (c *Consumer) handleOne(ctx context.Context, message types.Message) {
 	receipt := aws.ToString(message.ReceiptHandle)
 	receiveCount := approximateReceiveCount(message)
 
-	msgCtx := correlation.WithID(ctx, correlation.NewID())
+	msgCtx := correlation.WithID(ctx, correlationFromEnvelope(body))
+	if receiveCount > 1 && c.recorder != nil {
+		c.recorder.RecordRetry("sqs")
+	}
 	c.log.InfoContext(msgCtx, "sqs_message_received",
 		slog.String("sqsMessageId", aws.ToString(message.MessageId)),
+		slog.String("messageId", envelopeMessageID(body)),
 		slog.Int("receiveCount", receiveCount),
 		slog.String("correlationId", correlation.FromContext(msgCtx)),
 	)
 
-	_, err := c.handler.Handle(msgCtx, []byte(body))
+	start := time.Now()
+	result, err := c.handler.Handle(msgCtx, []byte(body))
 	if err == nil {
+		if c.recorder != nil {
+			if result.TransactionID.String() != "" || result.Status != "" {
+				c.recorder.RecordTransaction("sqs", string(result.Status), result.IdempotentReplay)
+			}
+			c.recorder.RecordProcessingDuration("sqs", time.Since(start).Seconds())
+		}
+		c.log.InfoContext(msgCtx, "sqs_message_processed",
+			slog.String("correlationId", correlation.FromContext(msgCtx)),
+			slog.String("messageId", envelopeMessageID(body)),
+			slog.String("transactionId", result.TransactionID.String()),
+			slog.String("status", string(result.Status)),
+			slog.Bool("idempotentReplay", result.IdempotentReplay),
+		)
 		if delErr := c.delete(msgCtx, receipt); delErr != nil {
 			c.log.ErrorContext(msgCtx, "sqs_delete_failed", slog.String("error", delErr.Error()))
 		}
 		return
+	}
+
+	if isConflict(err) && c.recorder != nil {
+		c.recorder.RecordConflict("sqs")
 	}
 
 	if isPoison(err) {
@@ -181,6 +209,9 @@ func (c *Consumer) handleOne(ctx context.Context, message types.Message) {
 		if moveErr := c.moveToDLQ(msgCtx, body, message); moveErr != nil {
 			c.log.ErrorContext(msgCtx, "sqs_dlq_failed", slog.String("error", moveErr.Error()))
 			return
+		}
+		if c.recorder != nil {
+			c.recorder.RecordDLQ()
 		}
 		if delErr := c.delete(msgCtx, receipt); delErr != nil {
 			c.log.ErrorContext(msgCtx, "sqs_delete_failed", slog.String("error", delErr.Error()))
@@ -193,6 +224,37 @@ func (c *Consumer) handleOne(ctx context.Context, message types.Message) {
 		slog.String("error", err.Error()),
 		slog.Int("receiveCount", receiveCount),
 	)
+}
+
+func correlationFromEnvelope(body string) string {
+	var peek struct {
+		CorrelationID string `json:"correlationId"`
+		MessageID     string `json:"messageId"`
+	}
+	_ = json.Unmarshal([]byte(body), &peek)
+	if peek.CorrelationID != "" {
+		return peek.CorrelationID
+	}
+	if peek.MessageID != "" {
+		return peek.MessageID
+	}
+	return correlation.NewID()
+}
+
+func envelopeMessageID(body string) string {
+	var peek struct {
+		MessageID string `json:"messageId"`
+	}
+	_ = json.Unmarshal([]byte(body), &peek)
+	return peek.MessageID
+}
+
+func isConflict(err error) bool {
+	if errors.Is(err, port.ErrConflict) {
+		return true
+	}
+	var domainErr *shared.Error
+	return errors.As(err, &domainErr) && domainErr.Kind == shared.KindConflict
 }
 
 func (c *Consumer) delete(ctx context.Context, receiptHandle string) error {

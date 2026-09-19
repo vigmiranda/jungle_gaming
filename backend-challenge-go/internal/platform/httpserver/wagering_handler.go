@@ -2,7 +2,9 @@ package httpserver
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -11,20 +13,25 @@ import (
 	"github.com/vigmi/backend-challenge-go/internal/domain/shared"
 	"github.com/vigmi/backend-challenge-go/internal/domain/wagering"
 	"github.com/vigmi/backend-challenge-go/internal/platform/auth"
+	"github.com/vigmi/backend-challenge-go/internal/platform/correlation"
 )
 
 // WageringHandler expõe as rotas de operações de provedor.
 type WageringHandler struct {
 	process    *usecase.ProcessWagerTransaction
 	unitOfWork port.UnitOfWork
+	log        *slog.Logger
+	recorder   port.Recorder
 }
 
 // NewWageringHandler monta o handler de wagering.
 func NewWageringHandler(
 	process *usecase.ProcessWagerTransaction,
 	unitOfWork port.UnitOfWork,
+	log *slog.Logger,
+	recorder port.Recorder,
 ) *WageringHandler {
-	return &WageringHandler{process: process, unitOfWork: unitOfWork}
+	return &WageringHandler{process: process, unitOfWork: unitOfWork, log: log, recorder: recorder}
 }
 
 type processTransactionRequest struct {
@@ -64,6 +71,7 @@ func (h *WageringHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	start := time.Now()
 	result, err := h.process.Execute(r.Context(), usecase.ProcessTransactionCommand{
 		IdempotencyKey:                 idempotencyKey,
 		ProviderID:                     body.ProviderID,
@@ -77,8 +85,27 @@ func (h *WageringHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ReferenceExternalTransactionID: body.ReferenceExternalTransactionID,
 	})
 	if err != nil {
-		writeError(w, err)
+		writeErrorWith(w, err, h.recorder)
 		return
+	}
+
+	if h.recorder != nil {
+		h.recorder.RecordTransaction("http", string(result.Status), result.IdempotentReplay)
+		h.recorder.RecordProcessingDuration("http_usecase", time.Since(start).Seconds())
+	}
+	if h.log != nil {
+		attrs := []any{
+			slog.String("correlationId", correlation.FromContext(r.Context())),
+			slog.String("transactionId", result.TransactionID.String()),
+			slog.String("walletId", body.WalletID),
+			slog.String("providerId", body.ProviderID),
+			slog.String("status", string(result.Status)),
+			slog.Bool("idempotentReplay", result.IdempotentReplay),
+		}
+		if result.FailureCode != "" {
+			attrs = append(attrs, slog.String("failureCode", string(result.FailureCode)))
+		}
+		h.log.InfoContext(r.Context(), "wager_transaction_processed", attrs...)
 	}
 
 	writeJSON(w, statusForTransaction(result.Status), mapTransactionResult(result))
