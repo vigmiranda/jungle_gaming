@@ -18,6 +18,18 @@ type errorBody struct {
 }
 
 func writeError(w http.ResponseWriter, err error) {
+	writeErrorWith(w, err, nil)
+}
+
+func writeErrorWith(w http.ResponseWriter, err error, recorder port.Recorder) {
+	if recorder != nil {
+		var domainErr *shared.Error
+		if errors.As(err, &domainErr) && domainErr.Kind == shared.KindConflict {
+			recorder.RecordConflict("http")
+		} else if errors.Is(err, port.ErrConflict) {
+			recorder.RecordConflict("http")
+		}
+	}
 	status, body := mapError(err)
 	writeJSON(w, status, body)
 }

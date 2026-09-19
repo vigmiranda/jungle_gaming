@@ -1,0 +1,29 @@
+meta {
+  name: Metrics
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/metrics
+  body: none
+  auth: none
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Endpoint Prometheus de scrape. Público, sem autenticação.
+
+  Expõe contadores de status, replays, retries, DLQ, conflitos, lag da
+  outbox, divergências de reconciliação e latência de processamento.
+  Não inclui tokens nem payload financeiro.
+}
+
+assert {
+  res.status: eq 200
+  res.body: contains wagering_transactions_total
+  res.body: contains wagering_processing_duration_seconds
+}

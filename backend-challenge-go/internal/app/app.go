@@ -17,6 +17,7 @@ import (
 	"github.com/vigmi/backend-challenge-go/internal/platform/health"
 	"github.com/vigmi/backend-challenge-go/internal/platform/httpserver"
 	"github.com/vigmi/backend-challenge-go/internal/platform/logging"
+	"github.com/vigmi/backend-challenge-go/internal/platform/metrics"
 	"github.com/vigmi/backend-challenge-go/internal/platform/postgres"
 	"github.com/vigmi/backend-challenge-go/internal/platform/postgres/repository"
 	"github.com/vigmi/backend-challenge-go/internal/platform/workers"
@@ -31,6 +32,7 @@ func Module() fx.Option {
 	return fx.Options(
 		config.Module,
 		logging.Module,
+		metrics.Module,
 		health.Module,
 		clock.Module,
 		postgres.Module,

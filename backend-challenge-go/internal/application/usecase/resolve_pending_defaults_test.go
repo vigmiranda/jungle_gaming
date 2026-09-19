@@ -6,7 +6,7 @@ import (
 )
 
 func TestNewResolvePendingReferencesAppliesDefaults(t *testing.T) {
-	resolve := NewResolvePendingReferences(nil, nil, nil, PendingReferencePolicy{})
+	resolve := NewResolvePendingReferences(nil, nil, nil, PendingReferencePolicy{}, nil)
 	if resolve.policy.MaxAttempts != 10 || resolve.policy.TTL != 5*time.Minute {
 		t.Fatalf("defaults = %+v", resolve.policy)
 	}

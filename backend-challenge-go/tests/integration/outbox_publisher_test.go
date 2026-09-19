@@ -190,7 +190,7 @@ func TestPublisherTickPublishesAndMarksAgainstPostgres(t *testing.T) {
 
 	// newPublisher é unexported; exercitamos via Tick através do construtor
 	// de teste no pacote awssqs — usamos o fluxo Claim/Send/Mark aqui.
-	publisher := awssqs.NewPublisherForTest(sender, uow, &fixedClock{now: now}, slog.Default(), cfg)
+	publisher := awssqs.NewPublisherForTest(sender, uow, &fixedClock{now: now}, slog.Default(), cfg, nil)
 
 	published, err := publisher.Tick(ctx)
 	if err != nil {

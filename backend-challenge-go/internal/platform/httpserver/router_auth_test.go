@@ -75,8 +75,9 @@ func newAuthTestRouter(t *testing.T, identity auth.Identity, repos *authTestRepo
 		discardLogger(),
 		NewHealthHandler(health.NewChecker(nil)),
 		authenticator,
-		NewWalletHandler(usecase.NewOpenWallet(uow, clock, ids), usecase.NewReconcileWallet(uow), uow),
-		NewWageringHandler(usecase.NewProcessWagerTransaction(uow, clock, ids), uow),
+		NewWalletHandler(usecase.NewOpenWallet(uow, clock, ids), usecase.NewReconcileWallet(uow), uow, discardLogger(), nil),
+		NewWageringHandler(usecase.NewProcessWagerTransaction(uow, clock, ids), uow, discardLogger(), nil),
+		nil,
 	)
 }
 

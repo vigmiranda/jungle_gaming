@@ -6,11 +6,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/vigmi/backend-challenge-go/internal/platform/auth"
+	"github.com/vigmi/backend-challenge-go/internal/platform/metrics"
 )
 
 // NewRouter monta o roteador da API.
 //
-// Health checks são públicos. Rotas de negócio exigem JWT válido; carteira e
+// Health e metrics são públicos. Rotas de negócio exigem JWT válido; carteira e
 // reconciliação ficam restritas ao serviço interno; operações de wagering ao
 // client do provedor (com isolamento por providerId).
 func NewRouter(
@@ -19,15 +20,19 @@ func NewRouter(
 	authenticator *auth.Authenticator,
 	wallets *WalletHandler,
 	wagering *WageringHandler,
+	met *metrics.Metrics,
 ) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Use(Correlation)
 	router.Use(Recover(log))
-	router.Use(RequestLogger(log))
+	router.Use(RequestLogger(log, met))
 
 	router.Get("/health/live", healthHandler.Live)
 	router.Get("/health/ready", healthHandler.Ready)
+	if met != nil {
+		router.Handle("/metrics", met.Handler())
+	}
 
 	if authenticator == nil || wallets == nil || wagering == nil {
 		return router

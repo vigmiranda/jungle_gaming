@@ -23,10 +23,11 @@ const wagerRequestedType = "WagerTransactionRequested"
 
 // WagerMessageEnvelope é o contrato de entrada da fila wager-transactions.
 type WagerMessageEnvelope struct {
-	MessageID  string          `json:"messageId"`
-	Type       string          `json:"type"`
-	OccurredAt time.Time       `json:"occurredAt"`
-	Data       json.RawMessage `json:"data"`
+	MessageID     string          `json:"messageId"`
+	CorrelationID string          `json:"correlationId,omitempty"`
+	Type          string          `json:"type"`
+	OccurredAt    time.Time       `json:"occurredAt"`
+	Data          json.RawMessage `json:"data"`
 }
 
 type wagerMessageData struct {

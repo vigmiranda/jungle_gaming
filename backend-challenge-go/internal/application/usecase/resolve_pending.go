@@ -27,6 +27,7 @@ type ResolvePendingReferences struct {
 	clock      port.Clock
 	process    *ProcessWagerTransaction
 	policy     PendingReferencePolicy
+	recorder   port.Recorder
 }
 
 // NewResolvePendingReferences monta o caso de uso do worker.
@@ -35,6 +36,7 @@ func NewResolvePendingReferences(
 	clock port.Clock,
 	process *ProcessWagerTransaction,
 	policy PendingReferencePolicy,
+	recorder port.Recorder,
 ) *ResolvePendingReferences {
 	if policy.MaxAttempts < 1 {
 		policy.MaxAttempts = 10
@@ -56,6 +58,7 @@ func NewResolvePendingReferences(
 		clock:      clock,
 		process:    process,
 		policy:     policy,
+		recorder:   recorder,
 	}
 }
 
@@ -74,8 +77,12 @@ func (uc *ResolvePendingReferences) Tick(ctx context.Context) (int, error) {
 				return nil
 			}
 			progressed = true
-			_, err = uc.resume(ctx, repositories, claimed[0], now)
-			return err
+			result, err := uc.resume(ctx, repositories, claimed[0], now)
+			if err != nil {
+				return err
+			}
+			uc.observePending(result)
+			return nil
 		})
 		if err != nil {
 			return processed, err
@@ -86,6 +93,17 @@ func (uc *ResolvePendingReferences) Tick(ctx context.Context) (int, error) {
 		processed++
 	}
 	return processed, nil
+}
+
+func (uc *ResolvePendingReferences) observePending(result TransactionResult) {
+	if uc.recorder == nil || result.Status == "" {
+		return
+	}
+	if result.Status == wagering.PendingReference {
+		uc.recorder.RecordRetry("pending_reference")
+		return
+	}
+	uc.recorder.RecordTransaction("pending_reference", string(result.Status), result.IdempotentReplay)
 }
 
 func (uc *ResolvePendingReferences) resume(
