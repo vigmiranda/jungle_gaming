@@ -95,6 +95,30 @@ func (r *TransactionRepository) FindByExternalID(
 		WHERE provider_id = $1 AND external_transaction_id = $2`, providerID, externalID)
 }
 
+// HasSuccessfulReversal indica se a referência já foi revertida com sucesso por
+// qualquer tipo.
+//
+// A consulta é mais abrangente que o índice parcial do schema, que é por tipo:
+// um `REFUND` seguido de um `ROLLBACK` da mesma aposta passaria pelo índice e
+// devolveria o mesmo débito duas vezes.
+func (r *TransactionRepository) HasSuccessfulReversal(
+	ctx context.Context,
+	referenceID shared.ID,
+) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM wager_transactions
+			WHERE reference_transaction_id = $1
+			  AND kind IN ('REFUND', 'ROLLBACK')
+			  AND status = 'PROCESSED'
+		)`, referenceID.String()).Scan(&exists)
+	if err != nil {
+		return false, translate("consultar reversão existente", err)
+	}
+	return exists, nil
+}
+
 // transactionRow espelha as colunas, com ponteiros onde o schema aceita nulo.
 type transactionRow struct {
 	id                    string

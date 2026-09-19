@@ -33,6 +33,14 @@ type Repositories interface {
 // Nenhum repositório abre commit por conta própria.
 type UnitOfWork interface {
 	Execute(ctx context.Context, fn func(ctx context.Context, repositories Repositories) error) error
+
+	// ExecuteReadOnly roda a função em uma transação somente leitura com
+	// isolamento `REPEATABLE READ`.
+	//
+	// A reconciliação precisa comparar saldo e ledger na mesma visão dos dados:
+	// sob `READ COMMITTED`, duas consultas da mesma transação enxergariam
+	// instantes diferentes e reportariam divergência onde não há.
+	ExecuteReadOnly(ctx context.Context, fn func(ctx context.Context, repositories Repositories) error) error
 }
 
 // WalletRepository persiste o agregado de carteira.
@@ -63,6 +71,15 @@ type TransactionRepository interface {
 	// escopo é por provedor: a chave pertence ao cliente e não cruza tenants.
 	FindByIdempotencyKey(ctx context.Context, providerID, idempotencyKey string) (*wagering.Transaction, error)
 	FindByExternalID(ctx context.Context, providerID, externalID string) (*wagering.Transaction, error)
+
+	// HasSuccessfulReversal indica se a referência já recebeu qualquer reversão
+	// bem-sucedida, de qualquer tipo.
+	//
+	// A checagem não é por tipo: um `REFUND` seguido de um `ROLLBACK` da mesma
+	// aposta devolveria o mesmo débito duas vezes. A unicidade por tipo no
+	// schema é a rede de proteção; a coerência financeira é decidida aqui, sob
+	// o lock da carteira, o que também impede a corrida entre duas reversões.
+	HasSuccessfulReversal(ctx context.Context, referenceID shared.ID) (bool, error)
 }
 
 // LedgerCursor localiza a página seguinte do extrato.

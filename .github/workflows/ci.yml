@@ -63,7 +63,10 @@ jobs:
         run: go test -race ./...
 
       - name: Gate de cobertura do domínio
-        run: ./scripts/check-domain-coverage.sh
+        run: ./scripts/check-domain-coverage.sh ./internal/domain/... 100.0
+
+      - name: Gate de cobertura da aplicação
+        run: ./scripts/check-domain-coverage.sh ./internal/application/... 98.0
 
       # Sobem PostgreSQL real via testcontainers: o desafio proíbe provar
       # constraints, migrations e atomicidade com mocks. O detector de corridas
