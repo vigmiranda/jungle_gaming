@@ -24,8 +24,8 @@ Permitir que outra pessoa reproduza a solução a partir de um checkout limpo e 
 5. Subir a aplicação
 6. Subir três instâncias locais para os cenários multi-instância (ADR-020)
 7. Exemplos de chamadas autenticadas
-8. Comandos de teste (unitário, integração, race, cobertura, multi-instância, falhas)
-9. Limitações conhecidas
+8. Comandos de teste (unitário, integração, race, cobertura, multi-instância, falhas, **stress** — ver etapa 11b / `docs/testing.md`)
+9. Limitações conhecidas (incluir ST-07 N/A e diferenciais Wave 4)
 
 ## ARCHITECTURE.md (conteúdo mínimo)
 
@@ -61,6 +61,15 @@ go test -coverprofile=coverage.out ./internal/domain/... && go tool cover -func=
 ```
 
 Documentar equivalentes se houver build tags ou scripts.
+
+Comandos da etapa 11b (documentar no README da solução):
+
+```sh
+docker compose --profile stress up -d --build
+make stress
+make fault-tests
+make load-test   # opcional (k6)
+```
 
 ## Por quê esta abordagem
 

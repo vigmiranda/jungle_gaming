@@ -71,6 +71,10 @@ make migrate-down           # reverte a última (STEPS=0 reverte todas)
 | `tests/integration` | Testes com infraestrutura real (build tag `integration`) |
 | `bruno/` | Coleção de validação manual |
 | `docs/testing.md` | Como rodar testes, cobertura e os 8 cenários obrigatórios |
+| `docs/stress-tests.md` | Wave 11b: multi-API, fault injection, k6 |
+| `tests/stress` | Cenários ST HTTP (`-tags=stress`) |
+| `tests/fault` | Scripts de interrupção Compose |
+| `loadtests/` | Scripts k6 opcionais |
 | `roadmap/` | Plano de execução e ADRs |
 | `deploy/` | Realm do Keycloak e provisionamento das filas |
 
