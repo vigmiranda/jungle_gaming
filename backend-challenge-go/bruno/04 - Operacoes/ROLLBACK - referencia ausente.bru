@@ -38,11 +38,15 @@ docs {
   Reversão que chega antes da transação referenciada.
 
   Deve responder 202 com a operação em `PENDING_REFERENCE`, único estado não
-  terminal observável pela API (ADR-012). O worker de referências tenta resolver
-  com backoff exponencial e, esgotado o TTL, finaliza como `REJECTED` com
+  terminal observável pela API (ADR-012). O worker de referências (etapa 9)
+  tenta resolver com backoff e, esgotado o TTL, finaliza como `REJECTED` com
   `REFERENCE_NOT_FOUND`.
 
-  Consulte a transação depois para acompanhar a resolução.
+  Disponível a partir da etapa 6 do roadmap (persistência e resposta HTTP);
+  a retomada automática entra na etapa 9.
+}
 
-  Disponível a partir da etapa 9 do roadmap.
+assert {
+  res.status: eq 202
+  res.body.status: eq PENDING_REFERENCE
 }
