@@ -1,7 +1,9 @@
 # Testes
 
 Como preparar dependências, rodar a suíte e interpretar a bateria obrigatória
-(etapa 11 / ADR-019 / ADR-020).
+(etapa 11 / ADR-019 / ADR-020) e a wave de stress (etapa 11b).
+
+Guia de stress / fault / k6: [`docs/stress-tests.md`](./stress-tests.md).
 
 ## Comandos
 
@@ -18,12 +20,18 @@ go test -race ./...
 ./scripts/check-domain-coverage.sh ./internal/domain/... 100.0
 ./scripts/check-domain-coverage.sh ./internal/application/... 100.0
 
-# Integração com PostgreSQL real (testcontainers)
+# Integração com PostgreSQL real (testcontainers), inclui ST-02 repetido e ST-04 burst
 go test -tags=integration -race -count=1 ./tests/...
 
 # Auth real (Keycloak) + contratos HTTP — Compose + coleção Bruno
 docker compose up -d --build
 make bruno
+
+# Stress HTTP multi-instância (etapa 11b)
+make stress-up
+make stress
+make fault-tests
+# make load-test   # opcional, requer k6
 ```
 
 ## Cobertura (domínio e aplicação)
@@ -41,20 +49,20 @@ go tool cover -func=coverage-app.out
 
 Última medição na etapa 11: ambos os pacotes em **100.0%** de statements.
 
-## Cenários de concorrência e recuperação
+## Cenários de concorrência e recuperação (etapa 11)
 
 | # | Cenário | Evidência |
 | --- | --- | --- |
 | 1 | Mesma aposta 50× em paralelo | `TestSameBetSentFiftyTimesInParallelDebitsOnce` |
 | 2 | Duas apostas 80.00 sobre 100.00 | `TestTwoCompetingBetsLeaveOneProcessedAndOneRejected` |
 | 3 | Carteiras distintas em paralelo | `TestDistinctWalletsProcessInParallel` |
-| 4 | ≥ 3 instâncias independentes | `TestThreeIndependentInstancesShareIdempotency` (+ `make run-multi`) |
+| 4 | ≥ 3 instâncias independentes | `TestThreeIndependentInstancesShareIdempotency` (+ `make stress-up`) |
 | 5 | Kill após commit, antes do delete SQS | `TestHandleWagerMessageRedeliveryDoesNotDoubleDebit` |
 | 6 | Dois publishers / lease expirado | `TestOutboxClaimIsExclusiveBetweenPublishers`, `TestOutboxExpiredLeaseIsReclaimedWithStableEventID` |
 | 7 | REFUND/ROLLBACK antes da referência | `TestPendingReferenceResolvesWhenBetArrivesLater`, `TestPendingReferenceExpiresAcrossWorkerRestarts` |
 | 8 | Restart com pendências preservadas | `TestPendingReferenceExpiresAcrossWorkerRestarts` (ver interpretação) |
 
-Cruzamento HTTP × SQS: `TestHandleWagerMessageSharesIdempotencyWithHTTP`.  
+Cruzamento HTTP × SQS: `TestHandleWagerMessageSharesIdempotencyWithHTTP` + `TestST04HTTPAndSQSBurstConcurrent`.  
 Reconciliação saldo × ledger: `TestReconciliationAgainstPostgres`.  
 Fx start/stop: `TestAppStartsAndStopsReleasingResources`.
 
@@ -63,32 +71,34 @@ Fx start/stop: `TestAppStartsAndStopsReleasingResources`.
 Não há aceite assíncrono genérico (ADR-012). A retomada exercitada é a de
 `PENDING_REFERENCE`, a reentrega do consumidor SQS (inbox) e a republicação da
 outbox após lease expirado. Idempotência e estado financeiro vivem no PostgreSQL.
+**ST-07** da especificação de stress é N/A.
 
 ## Multi-instância local
 
-Três processos contra o mesmo Compose de dependências (ADR-020):
-
 ```sh
+# Recomendado (3 APIs + nginx LB na :8090)
+make stress-up
+
+# Alternativa sem Compose profile
 docker compose up -d postgres keycloak localstack migrate
 make run-multi    # portas 8081, 8082, 8083
 make stop-multi
 ```
 
-No Windows sem `make`, compile `go build -o bin/api.exe ./cmd/api` e suba três
-processos com `HTTP_PORT=8081|8082|8083` apontando para o mesmo `.env`.
-
 ## Simulação de falha
 
-- **Reentrega SQS:** processar a mensagem duas vezes no handler (teste de
-  integração); ou derrubar o processo após o commit e antes do delete.
-- **Lease da outbox:** reivindicar com TTL curto e avançar o relógio / esperar
-  expiração; outro publisher reassume com o mesmo `eventId`.
-- **Poison → DLQ:** envelope inválido ou `providerId` fora da allow-list
-  (`isPoison`); Bruno e o job de Compose cobrem auth HTTP com Keycloak real.
-- **Cursor inválido do ledger:** `GET .../ledger?cursor=%%%` → 400.
+Scripts em `tests/fault/` (ver `docs/stress-tests.md`):
+
+```sh
+./tests/fault/pause_postgres.sh
+./tests/fault/unpause_postgres.sh
+./tests/fault/pause_sqs.sh
+./tests/fault/unpause_sqs.sh
+./tests/fault/kill_consumer.sh
+./tests/fault/kill_publisher.sh
+```
 
 ## Auth
 
-Credenciais e isolamento de provedor são exercitados pela coleção Bruno contra
-Keycloak no Compose (`02 - Auth`, `06 - Autorizacao`) e pelos testes de router
-com identidade injetada. O CI sobe o IdP real no job de integração.
+Credenciais e isolamento de provedor: Bruno + Keycloak no Compose, testes de
+router, e `TestST17_AuthorizationUnderConcurrency` (`-tags=stress`).

@@ -1,6 +1,6 @@
 .PHONY: help deps-up deps-down up down build run migrate-up migrate-down migrate-version \
 	test test-integration test-race test-race-docker cover cover-domain vet fmt check bruno \
-	run-multi stop-multi
+	run-multi stop-multi stress stress-up fault-tests load-test
 
 GO ?= go
 COVER_PACKAGES ?= ./internal/...
@@ -71,6 +71,7 @@ check: fmt vet test-race ## Formatação, análise estática e testes com -race
 
 # Três processos independentes com conexões e memória próprias, conforme ADR-020.
 # Detalhes e mapeamento dos 8 cenários: docs/testing.md
+# Preferível para stress HTTP: make stress-up (Compose profile stress + LB).
 run-multi: build ## Sobe três instâncias locais nas portas 8081, 8082 e 8083
 	HTTP_PORT=8081 ./bin/api & echo $$! > .pid-8081
 	HTTP_PORT=8082 ./bin/api & echo $$! > .pid-8082
@@ -80,3 +81,16 @@ stop-multi: ## Encerra as instâncias iniciadas por run-multi
 	-@for pid in .pid-8081 .pid-8082 .pid-8083; do \
 		if [ -f $$pid ]; then kill $$(cat $$pid) 2>/dev/null; rm -f $$pid; fi; \
 	done
+
+stress-up: ## Sobe deps + 3 APIs + LB (perfil Compose stress)
+	docker compose --profile stress up -d --build
+
+stress: ## Cenários ST via HTTP (requer stress-up + ready)
+	$(GO) test -tags=stress -count=1 -timeout 20m ./tests/stress/...
+
+fault-tests: ## Smoke dos scripts de fault injection
+	chmod +x tests/fault/*.sh
+	./tests/fault/run_smoke.sh
+
+load-test: ## Carga progressiva opcional (requer k6)
+	k6 run loadtests/progressive-load.js

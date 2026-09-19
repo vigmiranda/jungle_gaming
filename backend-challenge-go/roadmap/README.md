@@ -60,6 +60,7 @@ Todas as decisões estruturais estão aceitas em [decisoes-arquiteturais.md](./d
 | [09-referencias-pendentes.md](./09-referencias-pendentes.md) | 9 | Worker de `PENDING_REFERENCE` |
 | [10-observabilidade.md](./10-observabilidade.md) | 10 | Logs, métricas, health |
 | [11-testes-obrigatorios.md](./11-testes-obrigatorios.md) | 11 | Unitários, integração, concorrência, race |
+| [11b-stress-e-recuperacao.md](./11b-stress-e-recuperacao.md) | 11b | Stress HTTP multi-API, fault injection, k6 opcional |
 | [12-documentacao-e-entrega.md](./12-documentacao-e-entrega.md) | 12 | README, ARCHITECTURE, Compose reproduzível |
 | [decisoes-arquiteturais.md](./decisoes-arquiteturais.md) | ADR | Decisões consolidadas para o `ARCHITECTURE.md` |
 
@@ -90,20 +91,21 @@ Fatia vertical completa antes de abrir leque de funcionalidades.
 - E9 — worker de `PENDING_REFERENCE` com backoff e TTL
 - E10 — logs, métricas, health real
 - E11 — bateria oficial completa, incluindo 3 instâncias (ADR-020) e restart
+- **E11b — stress / fault injection / multi-API HTTP** (especificação STRESS_TESTS)
 - E12 — `README.md`, `ARCHITECTURE.md`, `.env.example`, comandos oficiais
 
 ### Wave 4 — só com folga real
 
-OpenTelemetry, dashboards, testes de carga, partidas dobradas.
+OpenTelemetry, dashboards, teste de carga progressiva (k6), partidas dobradas.
 
 ```
 Wave 1  E1 ██  E2 ████  E3 ██  E4 ███  MVP ████
 Wave 2  E5 ████  E6 ███  E7 ████  E8 ███
-Wave 3  E9 ██  E10 ██  E11 ██████  E12 ██
+Wave 3  E9 ██  E10 ██  E11 ██████  E11b ████  E12 ██
 Wave 4  diferenciais (opcional)
 ```
 
-Testes de integração começam **na Wave 1**, junto com o UoW — não só no fim. A etapa 11 fecha a bateria oficial completa.
+Testes de integração começam **na Wave 1**, junto com o UoW — não só no fim. A etapa 11 fecha a bateria oficial; a **11b** eleva a evidência ao nível da especificação de stress.
 
 ## Por que essa ordem
 
