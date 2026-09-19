@@ -25,26 +25,43 @@ type Repositories interface {
 	Transactions() TransactionRepository
 	Ledger() LedgerRepository
 	Inbox() InboxRepository
+	Outbox() OutboxRepository
 }
 
-// InboxMessage é o registro de uma entrega at-least-once já tratada.
-type InboxMessage struct {
-	ID           shared.ID
-	ConsumerName string
-	MessageID    string
-	PayloadHash  string
-	ReceivedAt   time.Time
+// OutboxRecord é um evento de integração a publicar após o commit.
+type OutboxRecord struct {
+	ID            shared.ID
+	AggregateType string
+	AggregateID   shared.ID
+	EventType     string
+	EventVersion  int
+	Payload       []byte
+	CorrelationID string
+	CausationID   string
+	OccurredAt    time.Time
+	Attempts      int
+	NextAttemptAt time.Time
+	LockedBy      string
+	LockedUntil   time.Time
+	PublishedAt   time.Time
+	HasLease      bool
+	HasPublished  bool
 }
 
-// InboxRepository deduplica entregas do broker na mesma transação do domínio.
-type InboxRepository interface {
-	// Record insere a mensagem. Devolve ErrConflict quando o par
-	// (consumer_name, message_id) já existe.
-	Record(ctx context.Context, message InboxMessage) error
+// OutboxRepository persiste e reivindica eventos da transactional outbox.
+type OutboxRepository interface {
+	// Append grava o evento no mesmo commit do domínio. O `ID` é o `eventId`
+	// estável: republicações reutilizam o mesmo valor (ADR-017).
+	Append(ctx context.Context, record OutboxRecord) error
 
-	// Find localiza uma entrega já registrada, para comparar o hash em
-	// reentregas.
-	Find(ctx context.Context, consumerName, messageID string) (InboxMessage, error)
+	// Claim reserva um lote elegível com `FOR UPDATE SKIP LOCKED` e lease.
+	Claim(ctx context.Context, publisherID string, limit int, leaseTTL time.Duration, now time.Time) ([]OutboxRecord, error)
+
+	// MarkPublished confirma a publicação e libera o lease.
+	MarkPublished(ctx context.Context, id shared.ID, now time.Time) error
+
+	// ReleaseWithBackoff libera o lease após falha e agenda a próxima tentativa.
+	ReleaseWithBackoff(ctx context.Context, id shared.ID, attempts int, nextAttemptAt, now time.Time) error
 }
 
 // UnitOfWork delimita a transação SQL de uma operação financeira.
@@ -131,4 +148,24 @@ type LedgerRepository interface {
 	// SumByWallet reconstrói o saldo somando créditos e subtraindo débitos,
 	// base da reconciliação.
 	SumByWallet(ctx context.Context, walletID shared.ID) (money.Money, int, error)
+}
+
+// InboxMessage é o registro de uma entrega at-least-once já tratada.
+type InboxMessage struct {
+	ID           shared.ID
+	ConsumerName string
+	MessageID    string
+	PayloadHash  string
+	ReceivedAt   time.Time
+}
+
+// InboxRepository deduplica entregas do broker na mesma transação do domínio.
+type InboxRepository interface {
+	// Record insere a mensagem. Devolve ErrConflict quando o par
+	// (consumer_name, message_id) já existe.
+	Record(ctx context.Context, message InboxMessage) error
+
+	// Find localiza uma entrega já registrada, para comparar o hash em
+	// reentregas.
+	Find(ctx context.Context, consumerName, messageID string) (InboxMessage, error)
 }

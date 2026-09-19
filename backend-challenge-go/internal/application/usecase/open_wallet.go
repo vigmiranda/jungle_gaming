@@ -124,6 +124,10 @@ func (uc *OpenWallet) recordOpening(
 		return err
 	}
 
-	return appendEntry(ctx, repositories, uc.ids,
-		opened.ID(), opening.ID(), ledger.Credit, opened.OpeningMovement(), opened.CreatedAt())
+	if err := appendEntry(ctx, repositories, uc.ids,
+		opened.ID(), opening.ID(), ledger.Credit, opened.OpeningMovement(), opened.CreatedAt()); err != nil {
+		return err
+	}
+
+	return appendOpeningEvents(ctx, repositories, uc.ids, opened, opening, opened.CreatedAt())
 }

@@ -98,6 +98,9 @@ func TestReversalBeforeReferenceBecomesPending(t *testing.T) {
 	if result.FailureCode != "" {
 		t.Errorf("failureCode = %q, esperado vazio", result.FailureCode)
 	}
+	if got := countOutboxType(f.unitOfWork.state.outbox, usecase.EventWagerTransactionPendingReference); got != 1 {
+		t.Errorf("PendingReference na outbox = %d, esperado 1", got)
+	}
 }
 
 // Referência ainda em voo: esperar é o que sustenta a entrega fora de ordem.

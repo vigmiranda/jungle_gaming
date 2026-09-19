@@ -77,6 +77,21 @@ type SQS struct {
 	VisibilityTimeout time.Duration
 	// AllowedProviders é a política de origem além da credencial do broker.
 	AllowedProviders []string
+
+	// PublisherEnabled liga o worker da transactional outbox.
+	PublisherEnabled bool
+	// PublisherID identifica a instância no lease (`locked_by`).
+	PublisherID string
+	// PublisherBatchSize é o tamanho do lote reivindicado por tick.
+	PublisherBatchSize int
+	// PublisherPollInterval é o intervalo entre ticks quando a fila está vazia.
+	PublisherPollInterval time.Duration
+	// PublisherLeaseTTL protege o claim durante o publish (ADR-006).
+	PublisherLeaseTTL time.Duration
+	// PublisherBackoffBase é a base do backoff exponencial após falha de publish.
+	PublisherBackoffBase time.Duration
+	// PublisherBackoffMax limita o atraso máximo entre tentativas.
+	PublisherBackoffMax time.Duration
 }
 
 // OIDC controla a validação de tokens emitidos pelo IdP externo.
@@ -124,19 +139,26 @@ func LoadFrom(lookup Lookup) (Config, error) {
 			ConnectTimeout: r.duration("POSTGRES_CONNECT_TIMEOUT", 5*time.Second),
 		},
 		SQS: SQS{
-			Region:              r.optional("AWS_REGION", "us-east-1"),
-			Endpoint:            r.optional("AWS_ENDPOINT_URL", ""),
-			AccessKeyID:         r.optional("AWS_ACCESS_KEY_ID", ""),
-			SecretAccessKey:     r.optional("AWS_SECRET_ACCESS_KEY", ""),
-			WagerQueueURL:       r.required("SQS_WAGER_QUEUE_URL"),
-			WagerDLQURL:         r.required("SQS_WAGER_DLQ_URL"),
-			IntegrationQueueURL: r.required("SQS_INTEGRATION_QUEUE_URL"),
-			ConsumerEnabled:     r.bool("SQS_CONSUMER_ENABLED", true),
-			ConsumerName:        r.optional("SQS_CONSUMER_NAME", "wager-consumer"),
-			MaxMessages:         int32(r.integer("SQS_MAX_MESSAGES", 5, 1, 10)),
-			WaitTime:            r.duration("SQS_WAIT_TIME", 20*time.Second),
-			VisibilityTimeout:   r.duration("SQS_VISIBILITY_TIMEOUT", 30*time.Second),
-			AllowedProviders:    r.csv("WAGER_ALLOWED_PROVIDERS", "provider-a,provider-b"),
+			Region:                r.optional("AWS_REGION", "us-east-1"),
+			Endpoint:              r.optional("AWS_ENDPOINT_URL", ""),
+			AccessKeyID:           r.optional("AWS_ACCESS_KEY_ID", ""),
+			SecretAccessKey:       r.optional("AWS_SECRET_ACCESS_KEY", ""),
+			WagerQueueURL:         r.required("SQS_WAGER_QUEUE_URL"),
+			WagerDLQURL:           r.required("SQS_WAGER_DLQ_URL"),
+			IntegrationQueueURL:   r.required("SQS_INTEGRATION_QUEUE_URL"),
+			ConsumerEnabled:       r.bool("SQS_CONSUMER_ENABLED", true),
+			ConsumerName:          r.optional("SQS_CONSUMER_NAME", "wager-consumer"),
+			MaxMessages:           int32(r.integer("SQS_MAX_MESSAGES", 5, 1, 10)),
+			WaitTime:              r.duration("SQS_WAIT_TIME", 20*time.Second),
+			VisibilityTimeout:     r.duration("SQS_VISIBILITY_TIMEOUT", 30*time.Second),
+			AllowedProviders:      r.csv("WAGER_ALLOWED_PROVIDERS", "provider-a,provider-b"),
+			PublisherEnabled:      r.bool("SQS_PUBLISHER_ENABLED", true),
+			PublisherID:           r.optional("SQS_PUBLISHER_ID", ""),
+			PublisherBatchSize:    r.integer("SQS_PUBLISHER_BATCH_SIZE", 10, 1, 100),
+			PublisherPollInterval: r.duration("SQS_PUBLISHER_POLL_INTERVAL", time.Second),
+			PublisherLeaseTTL:     r.duration("SQS_PUBLISHER_LEASE_TTL", 30*time.Second),
+			PublisherBackoffBase:  r.duration("SQS_PUBLISHER_BACKOFF_BASE", time.Second),
+			PublisherBackoffMax:   r.duration("SQS_PUBLISHER_BACKOFF_MAX", time.Minute),
 		},
 		OIDC: OIDC{
 			IssuerURL:   r.required("OIDC_ISSUER_URL"),

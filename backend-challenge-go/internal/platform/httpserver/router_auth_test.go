@@ -117,12 +117,24 @@ func (r *authTestRepos) Transactions() port.TransactionRepository {
 }
 func (r *authTestRepos) Ledger() port.LedgerRepository { return authTestLedger{} }
 func (r *authTestRepos) Inbox() port.InboxRepository   { return authTestInbox{} }
+func (r *authTestRepos) Outbox() port.OutboxRepository { return authTestOutbox{} }
 
 type authTestInbox struct{}
 
 func (authTestInbox) Record(context.Context, port.InboxMessage) error { return nil }
 func (authTestInbox) Find(context.Context, string, string) (port.InboxMessage, error) {
 	return port.InboxMessage{}, port.ErrNotFound
+}
+
+type authTestOutbox struct{}
+
+func (authTestOutbox) Append(context.Context, port.OutboxRecord) error { return nil }
+func (authTestOutbox) Claim(context.Context, string, int, time.Duration, time.Time) ([]port.OutboxRecord, error) {
+	return nil, nil
+}
+func (authTestOutbox) MarkPublished(context.Context, shared.ID, time.Time) error { return nil }
+func (authTestOutbox) ReleaseWithBackoff(context.Context, shared.ID, int, time.Time, time.Time) error {
+	return nil
 }
 
 type authTestWallets struct{}

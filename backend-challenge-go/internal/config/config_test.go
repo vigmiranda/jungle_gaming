@@ -67,6 +67,12 @@ func TestLoadFromAppliesDefaults(t *testing.T) {
 	if cfg.SQS.Endpoint != "" || cfg.SQS.AccessKeyID != "" || cfg.SQS.SecretAccessKey != "" {
 		t.Errorf("credenciais AWS deveriam ser opcionais e vazias por padrão: %+v", cfg.SQS)
 	}
+	if !cfg.SQS.PublisherEnabled {
+		t.Error("PublisherEnabled deveria ser true por padrão")
+	}
+	if cfg.SQS.PublisherBatchSize != 10 || cfg.SQS.PublisherLeaseTTL != 30*time.Second {
+		t.Errorf("publisher defaults incorretos: %+v", cfg.SQS)
+	}
 	if cfg.OIDC.JWKSRefresh != 5*time.Minute {
 		t.Errorf("OIDC.JWKSRefresh = %s, esperado 5m", cfg.OIDC.JWKSRefresh)
 	}

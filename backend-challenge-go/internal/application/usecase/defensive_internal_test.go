@@ -27,12 +27,24 @@ func (noopRepositories) Wallets() port.WalletRepository           { return noopW
 func (noopRepositories) Transactions() port.TransactionRepository { return noopTransactions{} }
 func (noopRepositories) Ledger() port.LedgerRepository            { return noopLedger{} }
 func (noopRepositories) Inbox() port.InboxRepository              { return noopInbox{} }
+func (noopRepositories) Outbox() port.OutboxRepository            { return noopOutbox{} }
 
 type noopInbox struct{}
 
 func (noopInbox) Record(context.Context, port.InboxMessage) error { return nil }
 func (noopInbox) Find(context.Context, string, string) (port.InboxMessage, error) {
 	return port.InboxMessage{}, port.ErrNotFound
+}
+
+type noopOutbox struct{}
+
+func (noopOutbox) Append(context.Context, port.OutboxRecord) error { return nil }
+func (noopOutbox) Claim(context.Context, string, int, time.Duration, time.Time) ([]port.OutboxRecord, error) {
+	return nil, nil
+}
+func (noopOutbox) MarkPublished(context.Context, shared.ID, time.Time) error { return nil }
+func (noopOutbox) ReleaseWithBackoff(context.Context, shared.ID, int, time.Time, time.Time) error {
+	return nil
 }
 
 type noopWallets struct{}
