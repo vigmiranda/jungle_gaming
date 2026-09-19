@@ -84,6 +84,7 @@ type fakeState struct {
 	inboxFindMisses   int
 	outbox            []port.OutboxRecord
 	outboxAppendErr   error
+	claimPendingErr   error
 }
 
 type walletRecord struct {
@@ -366,6 +367,31 @@ func (r *fakeTransactions) HasSuccessfulReversal(
 		}
 	}
 	return false, nil
+}
+
+func (r *fakeTransactions) ClaimPendingReferences(
+	_ context.Context,
+	limit int,
+	now time.Time,
+) ([]*wagering.Transaction, error) {
+	if r.state.claimPendingErr != nil {
+		return nil, r.state.claimPendingErr
+	}
+	var claimed []*wagering.Transaction
+	for _, transaction := range r.sorted() {
+		if transaction.Status() != wagering.PendingReference {
+			continue
+		}
+		next, ok := transaction.NextRetryAt()
+		if !ok || next.After(now) {
+			continue
+		}
+		claimed = append(claimed, transaction)
+		if len(claimed) >= limit {
+			break
+		}
+	}
+	return claimed, nil
 }
 
 // sorted torna a busca determinística, independentemente da ordem do map.

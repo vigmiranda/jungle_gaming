@@ -25,12 +25,24 @@ type Lookup func(key string) (string, bool)
 
 // Config agrega toda a configuração da aplicação.
 type Config struct {
-	Env      string
-	Log      Log
-	HTTP     HTTP
-	Postgres Postgres
-	SQS      SQS
-	OIDC     OIDC
+	Env              string
+	Log              Log
+	HTTP             HTTP
+	Postgres         Postgres
+	SQS              SQS
+	OIDC             OIDC
+	PendingReference PendingReference
+}
+
+// PendingReference calibra o worker de PENDING_REFERENCE (ADR-009).
+type PendingReference struct {
+	Enabled      bool
+	MaxAttempts  int
+	TTL          time.Duration
+	BackoffBase  time.Duration
+	BackoffMax   time.Duration
+	PollInterval time.Duration
+	BatchSize    int
 }
 
 // Log controla a saída estruturada.
@@ -165,6 +177,15 @@ func LoadFrom(lookup Lookup) (Config, error) {
 			Audience:    r.required("OIDC_AUDIENCE"),
 			JWKSURL:     r.optional("OIDC_JWKS_URL", ""),
 			JWKSRefresh: r.duration("OIDC_JWKS_REFRESH", 5*time.Minute),
+		},
+		PendingReference: PendingReference{
+			Enabled:      r.bool("PENDING_REFERENCE_ENABLED", true),
+			MaxAttempts:  r.integer("PENDING_REFERENCE_MAX_ATTEMPTS", 10, 1, 1000),
+			TTL:          r.duration("PENDING_REFERENCE_TTL", 5*time.Minute),
+			BackoffBase:  r.duration("PENDING_REFERENCE_BACKOFF_BASE", time.Second),
+			BackoffMax:   r.duration("PENDING_REFERENCE_BACKOFF_MAX", 30*time.Second),
+			PollInterval: r.duration("PENDING_REFERENCE_POLL_INTERVAL", time.Second),
+			BatchSize:    r.integer("PENDING_REFERENCE_BATCH_SIZE", 10, 1, 100),
 		},
 	}
 

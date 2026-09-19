@@ -19,7 +19,7 @@ const transactionColumns = `
 	provider_id, external_transaction_id, idempotency_key, payload_hash,
 	round_id, game_id, reference_external_transaction_id, reference_transaction_id,
 	failure_code, result_balance_minor, result_balance_currency, result_wallet_version,
-	created_at, updated_at`
+	attempt_count, next_retry_at, created_at, updated_at`
 
 // Create registra a operação.
 func (r *TransactionRepository) Create(ctx context.Context, target *wagering.Transaction) error {
@@ -27,12 +27,12 @@ func (r *TransactionRepository) Create(ctx context.Context, target *wagering.Tra
 
 	_, err := r.db.Exec(ctx, `
 		INSERT INTO wager_transactions (`+transactionColumns+`)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
 		row.id, row.origin, row.kind, row.status, row.walletID, row.playerID, row.amountMinor, row.amountCurrency,
 		row.providerID, row.externalID, row.idempotencyKey, row.payloadHash,
 		row.roundID, row.gameID, row.referenceExternalID, row.referenceID,
 		row.failureCode, row.resultBalanceMinor, row.resultBalanceCurrency, row.resultWalletVersion,
-		row.createdAt, row.updatedAt,
+		row.attemptCount, row.nextRetryAt, row.createdAt, row.updatedAt,
 	)
 	return translate("criar transação", err)
 }
@@ -40,7 +40,8 @@ func (r *TransactionRepository) Create(ctx context.Context, target *wagering.Tra
 // Update grava a transição de estado e o resultado do processamento.
 //
 // A identidade e os metadados de entrada são imutáveis: mudam apenas estado,
-// referência resolvida, código de falha, resultado e o instante de atualização.
+// referência resolvida, código de falha, resultado, retry e o instante de
+// atualização.
 func (r *TransactionRepository) Update(ctx context.Context, target *wagering.Transaction) error {
 	row := toTransactionRow(target)
 
@@ -52,11 +53,13 @@ func (r *TransactionRepository) Update(ctx context.Context, target *wagering.Tra
 		    result_balance_minor = $5,
 		    result_balance_currency = $6,
 		    result_wallet_version = $7,
-		    updated_at = $8
+		    attempt_count = $8,
+		    next_retry_at = $9,
+		    updated_at = $10
 		WHERE id = $1`,
 		row.id, row.status, row.referenceID, row.failureCode,
 		row.resultBalanceMinor, row.resultBalanceCurrency, row.resultWalletVersion,
-		row.updatedAt,
+		row.attemptCount, row.nextRetryAt, row.updatedAt,
 	)
 	if err != nil {
 		return translate("atualizar transação", err)
@@ -119,6 +122,42 @@ func (r *TransactionRepository) HasSuccessfulReversal(
 	return exists, nil
 }
 
+// ClaimPendingReferences reserva pendências elegíveis com FOR UPDATE SKIP LOCKED.
+func (r *TransactionRepository) ClaimPendingReferences(
+	ctx context.Context,
+	limit int,
+	now time.Time,
+) ([]*wagering.Transaction, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT `+transactionColumns+`
+		FROM wager_transactions
+		WHERE status = 'PENDING_REFERENCE'
+		  AND next_retry_at IS NOT NULL
+		  AND next_retry_at <= $1
+		ORDER BY next_retry_at, id
+		LIMIT $2
+		FOR UPDATE SKIP LOCKED`,
+		now.UTC(), limit,
+	)
+	if err != nil {
+		return nil, translate("reivindicar referências pendentes", err)
+	}
+	defer rows.Close()
+
+	var claimed []*wagering.Transaction
+	for rows.Next() {
+		transaction, scanErr := scanTransaction(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		claimed = append(claimed, transaction)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, translate("reivindicar referências pendentes", err)
+	}
+	return claimed, nil
+}
+
 // transactionRow espelha as colunas, com ponteiros onde o schema aceita nulo.
 type transactionRow struct {
 	id                    string
@@ -141,6 +180,8 @@ type transactionRow struct {
 	resultBalanceMinor    *int64
 	resultBalanceCurrency *string
 	resultWalletVersion   *int64
+	attemptCount          int
+	nextRetryAt           *time.Time
 	createdAt             time.Time
 	updatedAt             time.Time
 }
@@ -155,6 +196,7 @@ func toTransactionRow(target *wagering.Transaction) transactionRow {
 		playerID:       target.PlayerID().String(),
 		amountMinor:    target.Amount().MinorUnits(),
 		amountCurrency: target.Amount().Currency().String(),
+		attemptCount:   target.AttemptCount(),
 		createdAt:      target.CreatedAt(),
 		updatedAt:      target.UpdatedAt(),
 	}
@@ -179,6 +221,10 @@ func toTransactionRow(target *wagering.Transaction) transactionRow {
 		row.resultBalanceCurrency = &currency
 		row.resultWalletVersion = &version
 	}
+	if next, ok := target.NextRetryAt(); ok {
+		utc := next.UTC()
+		row.nextRetryAt = &utc
+	}
 	return row
 }
 
@@ -196,20 +242,29 @@ func (r *TransactionRepository) queryOne(
 	operation, query string,
 	args ...any,
 ) (*wagering.Transaction, error) {
-	var row transactionRow
-
-	err := r.db.QueryRow(ctx, query, args...).Scan(
-		&row.id, &row.origin, &row.kind, &row.status, &row.walletID, &row.playerID,
-		&row.amountMinor, &row.amountCurrency,
-		&row.providerID, &row.externalID, &row.idempotencyKey, &row.payloadHash,
-		&row.roundID, &row.gameID, &row.referenceExternalID, &row.referenceID,
-		&row.failureCode, &row.resultBalanceMinor, &row.resultBalanceCurrency, &row.resultWalletVersion,
-		&row.createdAt, &row.updatedAt,
-	)
+	row := r.db.QueryRow(ctx, query, args...)
+	transaction, err := scanTransaction(row)
 	if err != nil {
 		return nil, translate(operation, err)
 	}
-	return row.toDomain()
+	return transaction, nil
+}
+
+func scanTransaction(row scannable) (*wagering.Transaction, error) {
+	var scanned transactionRow
+
+	err := row.Scan(
+		&scanned.id, &scanned.origin, &scanned.kind, &scanned.status, &scanned.walletID, &scanned.playerID,
+		&scanned.amountMinor, &scanned.amountCurrency,
+		&scanned.providerID, &scanned.externalID, &scanned.idempotencyKey, &scanned.payloadHash,
+		&scanned.roundID, &scanned.gameID, &scanned.referenceExternalID, &scanned.referenceID,
+		&scanned.failureCode, &scanned.resultBalanceMinor, &scanned.resultBalanceCurrency, &scanned.resultWalletVersion,
+		&scanned.attemptCount, &scanned.nextRetryAt, &scanned.createdAt, &scanned.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return scanned.toDomain()
 }
 
 func (row transactionRow) toDomain() (*wagering.Transaction, error) {
@@ -254,6 +309,8 @@ func (row transactionRow) toDomain() (*wagering.Transaction, error) {
 		GameID:              text(row.gameID),
 		ReferenceExternalID: text(row.referenceExternalID),
 		FailureCode:         wagering.FailureCode(text(row.failureCode)),
+		AttemptCount:        row.attemptCount,
+		NextRetryAt:         row.nextRetryAt,
 		CreatedAt:           row.createdAt,
 		UpdatedAt:           row.updatedAt,
 	}

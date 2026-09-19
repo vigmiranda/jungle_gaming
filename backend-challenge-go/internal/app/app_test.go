@@ -58,6 +58,15 @@ func testConfig() config.Config {
 			Audience:    "wagering-api",
 			JWKSRefresh: time.Minute,
 		},
+		PendingReference: config.PendingReference{
+			Enabled:      false,
+			MaxAttempts:  10,
+			TTL:          5 * time.Minute,
+			BackoffBase:  time.Second,
+			BackoffMax:   30 * time.Second,
+			PollInterval: time.Second,
+			BatchSize:    10,
+		},
 	}
 }
 

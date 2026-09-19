@@ -415,13 +415,40 @@ func (uc *ProcessWagerTransaction) settle(
 	applied *settlement,
 	now time.Time,
 ) (TransactionResult, error) {
+	return uc.persistSettled(ctx, repositories, target, transaction, applied, now, true)
+}
+
+func (uc *ProcessWagerTransaction) settleExisting(
+	ctx context.Context,
+	repositories port.Repositories,
+	target *wallet.Wallet,
+	transaction *wagering.Transaction,
+	applied *settlement,
+	now time.Time,
+) (TransactionResult, error) {
+	return uc.persistSettled(ctx, repositories, target, transaction, applied, now, false)
+}
+
+func (uc *ProcessWagerTransaction) persistSettled(
+	ctx context.Context,
+	repositories port.Repositories,
+	target *wallet.Wallet,
+	transaction *wagering.Transaction,
+	applied *settlement,
+	now time.Time,
+	create bool,
+) (TransactionResult, error) {
 	if err := transaction.MarkProcessed(wagering.Result{
 		Balance:       target.Balance(),
 		WalletVersion: target.Version(),
 	}, now); err != nil {
 		return TransactionResult{}, err
 	}
-	if err := repositories.Transactions().Create(ctx, transaction); err != nil {
+	if create {
+		if err := repositories.Transactions().Create(ctx, transaction); err != nil {
+			return TransactionResult{}, err
+		}
+	} else if err := repositories.Transactions().Update(ctx, transaction); err != nil {
 		return TransactionResult{}, err
 	}
 
@@ -459,10 +486,35 @@ func (uc *ProcessWagerTransaction) reject(
 	code wagering.FailureCode,
 	now time.Time,
 ) (TransactionResult, error) {
+	return uc.persistRejected(ctx, repositories, transaction, code, now, true)
+}
+
+func (uc *ProcessWagerTransaction) rejectExisting(
+	ctx context.Context,
+	repositories port.Repositories,
+	transaction *wagering.Transaction,
+	code wagering.FailureCode,
+	now time.Time,
+) (TransactionResult, error) {
+	return uc.persistRejected(ctx, repositories, transaction, code, now, false)
+}
+
+func (uc *ProcessWagerTransaction) persistRejected(
+	ctx context.Context,
+	repositories port.Repositories,
+	transaction *wagering.Transaction,
+	code wagering.FailureCode,
+	now time.Time,
+	create bool,
+) (TransactionResult, error) {
 	if err := transaction.Reject(code, now); err != nil {
 		return TransactionResult{}, err
 	}
-	if err := repositories.Transactions().Create(ctx, transaction); err != nil {
+	if create {
+		if err := repositories.Transactions().Create(ctx, transaction); err != nil {
+			return TransactionResult{}, err
+		}
+	} else if err := repositories.Transactions().Update(ctx, transaction); err != nil {
 		return TransactionResult{}, err
 	}
 	if err := appendRejectedEvent(ctx, repositories, uc.ids, transaction, now); err != nil {

@@ -112,6 +112,13 @@ services:
       OIDC_ISSUER_URL: http://localhost:8088/realms/wagering
       OIDC_JWKS_URL: http://keycloak:8088/realms/wagering/protocol/openid-connect/certs
       OIDC_AUDIENCE: wagering-api
+      PENDING_REFERENCE_ENABLED: "true"
+      PENDING_REFERENCE_MAX_ATTEMPTS: "10"
+      PENDING_REFERENCE_TTL: 5m
+      PENDING_REFERENCE_BACKOFF_BASE: 1s
+      PENDING_REFERENCE_BACKOFF_MAX: 30s
+      PENDING_REFERENCE_POLL_INTERVAL: 1s
+      PENDING_REFERENCE_BATCH_SIZE: "10"
     ports:
       - "${API_HOST_PORT:-8080}:8080"
 

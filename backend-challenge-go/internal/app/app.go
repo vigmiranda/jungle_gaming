@@ -19,6 +19,7 @@ import (
 	"github.com/vigmi/backend-challenge-go/internal/platform/logging"
 	"github.com/vigmi/backend-challenge-go/internal/platform/postgres"
 	"github.com/vigmi/backend-challenge-go/internal/platform/postgres/repository"
+	"github.com/vigmi/backend-challenge-go/internal/platform/workers"
 )
 
 // Module reúne todos os módulos da aplicação.
@@ -37,6 +38,7 @@ func Module() fx.Option {
 		awssqs.Module,
 		auth.Module,
 		usecase.Module,
+		workers.Module,
 		httpserver.Module,
 		fx.WithLogger(func(log *slog.Logger) fxevent.Logger {
 			return &fxevent.SlogLogger{Logger: log}

@@ -32,6 +32,29 @@ func externalState(t *testing.T) wagering.State {
 	}
 }
 
+func TestRehydrateRestoresPendingRetryMetadata(t *testing.T) {
+	next := processedAt.Add(time.Minute)
+	state := externalState(t)
+	state.Kind = wagering.Rollback
+	state.Status = wagering.PendingReference
+	state.ReferenceExternalID = "transaction-123"
+	state.Result = nil
+	state.AttemptCount = 4
+	state.NextRetryAt = &next
+
+	restored, err := wagering.Rehydrate(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.AttemptCount() != 4 {
+		t.Errorf("attempts = %d", restored.AttemptCount())
+	}
+	got, ok := restored.NextRetryAt()
+	if !ok || !got.Equal(next) {
+		t.Errorf("next = %v (%v)", got, ok)
+	}
+}
+
 func TestRehydrateRestoresExternalTransaction(t *testing.T) {
 	restored, err := wagering.Rehydrate(externalState(t))
 	if err != nil {
