@@ -193,8 +193,8 @@ Status: `proposta` → `aceita` → `implementada` → `revisada`.
 | --- | --- |
 | Status | aceita |
 | Contexto | Testes valem 10 pontos e vários eliminatórios dependem de evidência executável |
-| Decisão | **100% dos casos do enunciado** cobertos por teste automatizado. Domínio com **100% de cobertura como gate rígido**; camada de aplicação com piso de 98%. Adapters cobertos por integração com infra real (Postgres, LocalStack, Keycloak), não por cobertura de linha |
-| Exceção da aplicação | Os poucos statements restantes são propagação de erro de transições de domínio que o estado já validado não consegue disparar — concluir uma transação recém-criada, por exemplo. As alcançáveis por chamada direta têm teste white-box; as demais ficam como defesa contra refatoração. Afrouxar validação só para cobri-las seria pior que a lacuna |
+| Decisão | **100% dos casos do enunciado** cobertos por teste automatizado. Domínio **e camada de aplicação com 100% de cobertura como gate rígido**: abaixo disso a etapa não fecha. Adapters cobertos por integração com infra real (Postgres, LocalStack, Keycloak), não por cobertura de linha |
+| Trecho inalcançável | Quando um `if err != nil` não é alcançável, o caminho é **eliminar o ramo**, não abrir exceção: mover a sequência para um construtor de domínio que já a valida (`wagering.NewProcessedOpening`) ou compartilhar um helper único entre os chamadores (`appendEntry`). Afrouxar validação para cobrir o ramo seria o oposto do objetivo |
 | Regra de Done | Nenhuma regra de negócio ou garantia entra como concluída sem teste que falhe se ela quebrar |
 | Proibições | Asserção apenas de "não deu erro"; mock de Postgres/SQS/IdP como prova de idempotência, lock ou recuperação |
 | Fora da meta de linha | `main`, wiring Fx, Dockerfile e clients AWS — validados por teste de composição e integração, não por percentual |

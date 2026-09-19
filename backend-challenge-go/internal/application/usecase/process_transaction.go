@@ -414,17 +414,9 @@ func (uc *ProcessWagerTransaction) settle(
 	}
 
 	if applied != nil {
-		entryID, err := uc.ids.NewID()
+		err := appendEntry(ctx, repositories, uc.ids,
+			target.ID(), transaction.ID(), applied.direction, applied.movement, now)
 		if err != nil {
-			return TransactionResult{}, err
-		}
-		entry, err := ledger.NewEntry(
-			entryID, target.ID(), transaction.ID(), applied.direction,
-			applied.movement.Amount, applied.movement.BalanceBefore, applied.movement.BalanceAfter, now)
-		if err != nil {
-			return TransactionResult{}, err
-		}
-		if err := repositories.Ledger().Append(ctx, entry); err != nil {
 			return TransactionResult{}, err
 		}
 		if err := repositories.Wallets().UpdateBalance(ctx, target); err != nil {

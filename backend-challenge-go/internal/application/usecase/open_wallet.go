@@ -107,39 +107,23 @@ func (uc *OpenWallet) recordOpening(
 		return err
 	}
 
-	opening, err := wagering.NewOpening(wagering.OpeningParams{
+	opening, err := wagering.NewProcessedOpening(wagering.OpeningParams{
 		ID:        transactionID,
 		WalletID:  opened.ID(),
 		PlayerID:  opened.PlayerID(),
 		Amount:    opened.Balance(),
 		CreatedAt: opened.CreatedAt(),
-	})
-	if err != nil {
-		return err
-	}
-	if err := opening.MarkProcessed(wagering.Result{
+	}, wagering.Result{
 		Balance:       opened.Balance(),
 		WalletVersion: opened.Version(),
-	}, opened.CreatedAt()); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	if err := repositories.Transactions().Create(ctx, opening); err != nil {
 		return err
 	}
 
-	entryID, err := uc.ids.NewID()
-	if err != nil {
-		return err
-	}
-	entry, err := ledger.NewEntry(
-		entryID, opened.ID(), opening.ID(), ledger.Credit,
-		opened.Balance(),
-		money.Zero(opened.Currency()),
-		opened.Balance(),
-		opened.CreatedAt(),
-	)
-	if err != nil {
-		return err
-	}
-	return repositories.Ledger().Append(ctx, entry)
+	return appendEntry(ctx, repositories, uc.ids,
+		opened.ID(), opening.ID(), ledger.Credit, opened.OpeningMovement(), opened.CreatedAt())
 }

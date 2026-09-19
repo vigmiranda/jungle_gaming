@@ -48,7 +48,7 @@ Impor invariantes financeiras **no PostgreSQL**, independentemente de locks loca
 | Idempotência externa | `UNIQUE (provider_id, external_transaction_id)` **e** `UNIQUE (provider_id, idempotency_key)` — escopo por provedor, nunca global (ADR-005) |
 | Inbox | `UNIQUE (consumer_name, message_id)` |
 | Sem `OPENING` duplicado | unique parcial / origem INTERNAL vs EXTERNAL |
-| Uma reversão do mesmo tipo por referência | unique parcial `(reference_id, kind)` para REFUND/ROLLBACK bem-sucedidos |
+| Uma reversão do mesmo tipo por referência | unique parcial `(reference_id, kind)` para REFUND/ROLLBACK bem-sucedidos — rede de proteção; a regra de "uma reversão por referência, de qualquer tipo" é aplicada no caso de uso (ADR-010) |
 | Money | `BIGINT` (centavos) + `CHAR(3)` moeda; nunca float |
 
 ## Colunas de apoio à concorrência e recuperação

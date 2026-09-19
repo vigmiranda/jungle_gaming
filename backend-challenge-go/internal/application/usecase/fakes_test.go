@@ -64,17 +64,20 @@ type fakeState struct {
 	transactions map[string]*wagering.Transaction
 	ledger       []ledger.Entry
 
-	walletCreateErr  error
-	walletLockErr    error
-	walletFindErr    error
-	walletUpdateErr  error
-	transactionErr   error
-	findByKeyErr     error
-	findExternalErr  error
-	reversalCheckErr error
-	ledgerAppendErr  error
-	ledgerSumErr     error
-	ledgerSumMoney   *money.Money
+	walletCreateErr error
+	walletLockErr   error
+	walletFindErr   error
+	walletUpdateErr error
+	transactionErr  error
+	findByKeyErr    error
+	findExternalErr error
+	// findExternalErrOn restringe a falha a um id externo específico, para
+	// separar a busca de replay da busca da referência de uma reversão.
+	findExternalErrOn string
+	reversalCheckErr  error
+	ledgerAppendErr   error
+	ledgerSumErr      error
+	ledgerSumMoney    *money.Money
 }
 
 type walletRecord struct {
@@ -263,7 +266,8 @@ func (r *fakeTransactions) FindByExternalID(
 	_ context.Context,
 	providerID, externalID string,
 ) (*wagering.Transaction, error) {
-	if r.state.findExternalErr != nil {
+	if r.state.findExternalErr != nil &&
+		(r.state.findExternalErrOn == "" || r.state.findExternalErrOn == externalID) {
 		return nil, r.state.findExternalErr
 	}
 	for _, candidate := range r.sorted() {

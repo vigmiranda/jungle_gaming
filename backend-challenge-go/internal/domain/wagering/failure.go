@@ -17,7 +17,9 @@ const (
 	FailureReferenceNotFound FailureCode = "REFERENCE_NOT_FOUND"
 	// FailureReferenceNotProcessed: referência existe mas não é elegível.
 	FailureReferenceNotProcessed FailureCode = "REFERENCE_NOT_PROCESSED"
-	// FailureDuplicateReversal: segunda reversão do mesmo tipo sobre a referência.
+	// FailureDuplicateReversal: a referência já foi revertida. Vale para
+	// qualquer tipo: um REFUND seguido de um ROLLBACK da mesma aposta
+	// devolveria o mesmo débito duas vezes.
 	FailureDuplicateReversal FailureCode = "DUPLICATE_REVERSAL"
 	// FailureReferenceMismatch: referência que não concorda em provedor,
 	// jogador, carteira, moeda, rodada ou valor.
