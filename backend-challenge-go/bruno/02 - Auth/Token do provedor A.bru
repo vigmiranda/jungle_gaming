@@ -1,0 +1,34 @@
+meta {
+  name: Token do provedor A
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: client_credentials
+  client_id: {{providerClientId}}
+  client_secret: {{providerClientSecret}}
+}
+
+vars:post-response {
+  providerToken: res.body.access_token
+}
+
+docs {
+  Obtém o token do provedor A via `client_credentials` no Keycloak.
+
+  O token carrega as claims `provider_id` e `wallet_role`, que definem qual
+  provedor a identidade pode movimentar. Guarda o access token na variável de
+  ambiente `providerToken`, usada pelas chamadas de operação.
+}
+
+assert {
+  res.status: eq 200
+  res.body.token_type: eq Bearer
+}

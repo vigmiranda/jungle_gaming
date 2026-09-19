@@ -1,0 +1,30 @@
+meta {
+  name: Token do provedor B
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: client_credentials
+  client_id: {{otherProviderClientId}}
+  client_secret: {{otherProviderClientSecret}}
+}
+
+vars:post-response {
+  otherProviderToken: res.body.access_token
+}
+
+docs {
+  Token de um segundo provedor, usado para provar o isolamento entre provedores:
+  com ele, as consultas e operações do provedor A devem ser recusadas.
+}
+
+assert {
+  res.status: eq 200
+}

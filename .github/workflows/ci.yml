@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend-challenge-go
+
+jobs:
+  build:
+    name: Build e análise estática
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend-challenge-go/go.mod
+          cache-dependency-path: backend-challenge-go/go.sum
+
+      - name: Formatação
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Arquivos fora do padrão gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Dependências reproduzíveis
+        run: go mod verify
+
+      - name: Análise estática
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+  test:
+    name: Testes com -race e cobertura
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend-challenge-go/go.mod
+          cache-dependency-path: backend-challenge-go/go.sum
+
+      # O runner Linux tem toolchain C, então o detector de corridas roda nativo.
+      - name: Testes com detector de corridas
+        run: go test -race ./...
+
+      - name: Gate de cobertura do domínio
+        run: ./scripts/check-domain-coverage.sh
+
+  integration:
+    name: Ambiente local e coleção Bruno
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Subir o ambiente
+        run: docker compose up -d --build
+
+      - name: Aguardar readiness da API
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://localhost:8080/health/ready; then
+              echo
+              echo "API pronta na tentativa $attempt"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "A API não ficou pronta a tempo"
+          exit 1
+
+      # As pastas são listadas explicitamente porque a coleção já contém as
+      # requisições das etapas seguintes, que respondem 404 até serem
+      # implementadas. Ao concluir uma etapa, inclua a pasta correspondente.
+      - name: Executar a coleção Bruno
+        working-directory: backend-challenge-go/bruno
+        run: npx --yes @usebruno/cli@latest run "01 - Health" "02 - Auth" --env Local
+
+      - name: Logs em caso de falha
+        if: failure()
+        run: docker compose logs --tail 200
+
+      - name: Derrubar o ambiente
+        if: always()
+        run: docker compose down -v

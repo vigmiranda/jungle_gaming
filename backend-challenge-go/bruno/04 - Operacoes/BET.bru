@@ -1,0 +1,48 @@
+meta {
+  name: BET
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/wagering/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{providerId}}:{{externalTransactionId}}
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "providerId": "{{providerId}}",
+    "externalTransactionId": "{{externalTransactionId}}",
+    "playerId": "{{playerId}}",
+    "walletId": "{{walletId}}",
+    "roundId": "{{roundId}}",
+    "gameId": "{{gameId}}",
+    "kind": "BET",
+    "money": { "amount": "25.00", "currency": "BRL" }
+  }
+}
+
+vars:post-response {
+  transactionId: res.body.transactionId
+}
+
+docs {
+  Aposta: débito que exige valor positivo e saldo suficiente.
+
+  O header `Idempotency-Key` é obrigatório e o servidor não o substitui por um
+  valor calculado. Sem saldo, a resposta é 422 com `failureCode:
+  INSUFFICIENT_FUNDS`.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

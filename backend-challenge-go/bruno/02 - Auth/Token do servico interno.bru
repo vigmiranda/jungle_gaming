@@ -1,0 +1,31 @@
+meta {
+  name: Token do servico interno
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: client_credentials
+  client_id: {{internalClientId}}
+  client_secret: {{internalClientSecret}}
+}
+
+vars:post-response {
+  internalToken: res.body.access_token
+}
+
+docs {
+  Token do serviço interno (`wallet_role: internal`), única identidade autorizada
+  a abrir carteira e disparar reconciliação. Guarda o access token em
+  `internalToken`.
+}
+
+assert {
+  res.status: eq 200
+}

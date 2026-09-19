@@ -1,0 +1,48 @@
+meta {
+  name: REFUND
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/wagering/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{providerId}}:refund-001
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "providerId": "{{providerId}}",
+    "externalTransactionId": "refund-001",
+    "referenceExternalTransactionId": "{{externalTransactionId}}",
+    "playerId": "{{playerId}}",
+    "walletId": "{{walletId}}",
+    "roundId": "{{roundId}}",
+    "gameId": "{{gameId}}",
+    "kind": "REFUND",
+    "money": { "amount": "25.00", "currency": "BRL" }
+  }
+}
+
+docs {
+  Estorno integral de uma `BET` já processada.
+
+  A referência é resolvida por `(providerId, referenceExternalTransactionId)` e
+  precisa concordar em provedor, jogador, carteira, moeda e rodada. O valor deve
+  ser igual ao referenciado: não há estorno parcial.
+
+  Se a aposta referenciada ainda não chegou, a operação fica `PENDING_REFERENCE`
+  e a resposta é 202 (ADR-013); o worker de referências continua depois.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

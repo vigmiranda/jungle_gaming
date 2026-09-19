@@ -1,0 +1,29 @@
+meta {
+  name: Reconciliacao
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/wallets/{{walletId}}/reconciliation
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{internalToken}}
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Reconstrói o saldo a partir do ledger, incluindo a abertura, e compara com o
+  saldo armazenado. `difference` é o armazenado menos o reconstruído.
+
+  A operação é somente leitura: não corrige nem altera saldo. Divergências são
+  reportadas também em log e métrica.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

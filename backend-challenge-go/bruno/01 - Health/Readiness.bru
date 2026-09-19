@@ -1,0 +1,31 @@
+meta {
+  name: Readiness
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/health/ready
+  body: none
+  auth: none
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Readiness de PostgreSQL e SQS. Público, sem autenticação.
+
+  Responde 503 com o detalhe por dependência quando alguma está inacessível.
+  Para ver isso, pare uma dependência e repita a chamada:
+
+    docker compose stop localstack
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+  res.body.checks.postgres.status: eq ok
+  res.body.checks.sqs.status: eq ok
+}

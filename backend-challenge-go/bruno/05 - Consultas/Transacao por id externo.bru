@@ -1,0 +1,25 @@
+meta {
+  name: Transacao por id externo
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/providers/{{providerId}}/wagering/transactions/{{externalTransactionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+docs {
+  Consulta pela chave do provedor `(providerId, externalTransactionId)`.
+
+  Disponível a partir da etapa 5 do roadmap.
+}

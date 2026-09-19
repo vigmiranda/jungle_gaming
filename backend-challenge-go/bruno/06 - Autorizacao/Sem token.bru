@@ -1,0 +1,41 @@
+meta {
+  name: Sem token
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/wagering/transactions
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{providerId}}:sem-token
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "providerId": "{{providerId}}",
+    "externalTransactionId": "sem-token",
+    "playerId": "{{playerId}}",
+    "walletId": "{{walletId}}",
+    "roundId": "{{roundId}}",
+    "gameId": "{{gameId}}",
+    "kind": "BET",
+    "money": { "amount": "10.00", "currency": "BRL" }
+  }
+}
+
+docs {
+  Endpoint de negócio sem credencial: deve responder 401 e não produzir nenhum
+  efeito financeiro. Autenticação ausente é item eliminatório do desafio.
+
+  Disponível a partir da etapa 6 do roadmap.
+}
+
+assert {
+  res.status: eq 401
+}

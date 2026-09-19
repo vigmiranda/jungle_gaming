@@ -1,0 +1,48 @@
+meta {
+  name: BET - replay identico
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/wagering/transactions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: {{providerId}}:{{externalTransactionId}}
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "providerId": "{{providerId}}",
+    "externalTransactionId": "{{externalTransactionId}}",
+    "playerId": "{{playerId}}",
+    "walletId": "{{walletId}}",
+    "roundId": "{{roundId}}",
+    "gameId": "{{gameId}}",
+    "kind": "BET",
+    "money": { "amount": "25.00", "currency": "BRL" }
+  }
+}
+
+docs {
+  Mesma chave e mesmo conteúdo da aposta anterior.
+
+  Deve devolver `idempotentReplay: true` com o resultado persistido, incluindo o
+  saldo observado no processamento original — mesmo que a carteira já tenha se
+  movimentado depois (ADR-014). Nenhum débito novo pode aparecer no ledger.
+
+  Disponível a partir da etapa 5 do roadmap.
+}
+
+assert {
+  res.body.idempotentReplay: eq true
+}

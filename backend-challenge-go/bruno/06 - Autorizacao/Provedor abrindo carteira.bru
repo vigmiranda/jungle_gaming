@@ -1,0 +1,38 @@
+meta {
+  name: Provedor abrindo carteira
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/wallets
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{providerToken}}
+}
+
+headers {
+  Content-Type: application/json
+  X-Correlation-Id: bruno-{{$randomUUID}}
+}
+
+body:json {
+  {
+    "playerId": "{{playerId}}",
+    "initialBalance": { "amount": "1000.00", "currency": "BRL" }
+  }
+}
+
+docs {
+  Operação interna disparada por identidade de provedor: deve responder 403.
+  Abertura de carteira é exclusiva do serviço interno.
+
+  Disponível a partir da etapa 6 do roadmap.
+}
+
+assert {
+  res.status: eq 403
+}
