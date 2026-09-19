@@ -19,16 +19,18 @@ Proibido: asserção apenas de "não retornou erro" sem verificar saldo, ledger,
 
 Esta etapa fecha a bateria oficial, mas os testes são escritos **junto com cada fatia**, desde a Wave 1.
 
+Guia operacional: [`docs/testing.md`](../docs/testing.md).
+
 ## Done when
 
-- [ ] Unitários de domínio completos, com relatório de cobertura anexado ao README
-- [ ] Integração com containers reais (Compose/testcontainers)
-- [ ] Auth real com Keycloak
-- [ ] Os 8 cenários de concorrência/recuperação do README
-- [ ] Cruzamento HTTP × SQS
-- [ ] Reconciliação final saldo × ledger
-- [ ] Verificação Fx start/stop e liberação de workers
-- [ ] Comandos: `go test ./...`, `go test -race ./...`, `go vet ./...`, cobertura do domínio
+- [x] Unitários de domínio completos, com relatório de cobertura anexado (`docs/testing.md`)
+- [x] Integração com containers reais (Compose/testcontainers)
+- [x] Auth real com Keycloak (Bruno + Compose no CI)
+- [x] Os 8 cenários de concorrência/recuperação do README
+- [x] Cruzamento HTTP × SQS
+- [x] Reconciliação final saldo × ledger
+- [x] Verificação Fx start/stop e liberação de workers
+- [x] Comandos: `go test ./...`, `go test -race ./...`, `go vet ./...`, cobertura do domínio
 
 ## Unitários
 
@@ -63,14 +65,14 @@ Esta etapa fecha a bateria oficial, mas os testes são escritos **junto com cada
 
 ## Concorrência e recuperação (checklist do desafio)
 
-1. Mesma aposta **50×** em paralelo → um único débito
-2. Duas apostas de **80.00** sobre **100.00** → 1 processed, 1 rejected, saldo **20.00**, um débito no ledger; reenvios não alteram
-3. Carteiras distintas em paralelo
-4. Cenários relevantes com **≥ 3 instâncias** independentes (três processos locais contra o mesmo Compose — ADR-020)
-5. Interromper consumidor após commit e antes do delete SQS → reentrega segura
-6. Dois publishers na mesma outbox → recuperação de publicação (matar um durante o lease)
-7. `REFUND`/`ROLLBACK` antes da referência → resolução posterior ou rejeição por expiração
-8. Restart com idempotência/pendências preservadas. Como não há aceite assíncrono (ADR-012), a retomada exercitada é a de `PENDING_REFERENCE`, do consumidor SQS e do publisher da outbox — documentar essa interpretação
+1. Mesma aposta **50×** em paralelo → um único débito — `TestSameBetSentFiftyTimesInParallelDebitsOnce`
+2. Duas apostas de **80.00** sobre **100.00** → 1 processed, 1 rejected, saldo **20.00**, um débito no ledger; reenvios não alteram — `TestTwoCompetingBetsLeaveOneProcessedAndOneRejected`
+3. Carteiras distintas em paralelo — `TestDistinctWalletsProcessInParallel`
+4. Cenários relevantes com **≥ 3 instâncias** independentes — `TestThreeIndependentInstancesShareIdempotency` + `make run-multi`
+5. Interromper consumidor após commit e antes do delete SQS → reentrega segura — `TestHandleWagerMessageRedeliveryDoesNotDoubleDebit`
+6. Dois publishers na mesma outbox → recuperação de publicação — `TestOutboxClaimIsExclusiveBetweenPublishers` / lease expirado
+7. `REFUND`/`ROLLBACK` antes da referência → resolução posterior ou rejeição por expiração — `pending_reference_test.go`
+8. Restart com idempotência/pendências preservadas. Como não há aceite assíncrono (ADR-012), a retomada exercitada é a de `PENDING_REFERENCE`, do consumidor SQS e do publisher da outbox — `TestPendingReferenceExpiresAcrossWorkerRestarts`
 
 Ao final: saldo armazenado = créditos − débitos do ledger. Incluir cenários que cruzam HTTP e SQS.
 
@@ -84,8 +86,9 @@ Ao final: saldo armazenado = créditos − débitos do ledger. Incluir cenários
 
 ```
 internal/domain/...        # unitários rápidos
-tests/integration/...      # build tag integration (opcional)
-Makefile / scripts        # sobe deps, roda suíte e as 3 instâncias
+tests/integration/...      # build tag integration
+docs/testing.md            # comandos, cobertura, mapeamento dos 8 cenários
+Makefile / scripts         # deps, suíte e as 3 instâncias
 ```
 
-Documentar como preparar dependências e como rodar integração, multi-instância e simulação de falha.
+Documentar como preparar dependências e como rodar integração, multi-instância e simulação de falha: feito em `docs/testing.md`.
