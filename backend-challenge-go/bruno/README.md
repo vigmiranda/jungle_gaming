@@ -115,12 +115,15 @@ etapa do roadmap em que passa a funcionar.
 
 | Pasta | Situação |
 | --- | --- |
-| `01 - Health` | Funcionando (etapa 1) |
-| `02 - Auth` | Funcionando (etapa 1) |
-| `03 - Carteiras` | Funcionando (etapa 6) |
-| `04 - Operacoes` | Funcionando (etapa 6) |
-| `05 - Consultas` | Funcionando (etapa 6) |
-| `06 - Autorizacao` | Funcionando (etapa 6) |
+| `01 - Health` | Liveness, readiness e metrics (etapas 1 e 10) |
+| `02 - Auth` | Tokens Keycloak (etapa 1) |
+| `03 - Carteiras` | Abertura, consulta, ledger, cursor inválido, reconciliação (etapa 6+) |
+| `04 - Operacoes` | Cinco tipos, replay, conflitos, PENDING_REFERENCE (etapas 5–9) |
+| `05 - Consultas` | Por id interno e externo (etapa 6) |
+| `06 - Autorizacao` | Sem token, isolamento entre provedores, papel interno (etapa 6) |
+
+404 em rotas de negócio só ocorreria em checkout incompleto; no `main` atual
+todas as pastas acima respondem conforme o contrato.
 
 ## Como adicionar uma requisição
 
@@ -191,7 +194,8 @@ alguma `*_HOST_PORT` no `.env`, atualize `baseUrl` e `keycloakUrl` no ambiente
 expira em cinco minutos; execute novamente a requisição de token da pasta
 `02 - Auth`.
 
-**404 em carteiras ou operações.** Esperado até a etapa 5 do roadmap.
+**404 em carteiras ou operações.** No `main` atual as rotas existem; se receber
+404, confira se a API do Compose está na revisão correta (`docker compose up --build`).
 
 **Variável vazia no meio do fluxo.** A requisição que a preenche não rodou nesta
 sessão. Execute a pasta inteira na ordem, ou use `make bruno`, que roda tudo em
