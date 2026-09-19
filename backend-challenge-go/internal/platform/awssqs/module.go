@@ -6,10 +6,12 @@ import (
 	"github.com/vigmi/backend-challenge-go/internal/platform/health"
 )
 
-// Module provê o cliente SQS e registra a verificação de readiness no grupo de probes.
+// Module provê o cliente SQS, o consumidor e a verificação de readiness.
 var Module = fx.Module("sqs",
 	fx.Provide(
 		NewClient,
+		NewConsumer,
 		fx.Annotate(NewProbe, fx.ResultTags(health.ProbeGroup)),
 	),
+	fx.Invoke(RegisterConsumer),
 )

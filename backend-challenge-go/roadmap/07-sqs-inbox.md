@@ -6,16 +6,16 @@ Consumir `WagerTransactionRequested` com as mesmas garantias do caso de uso HTTP
 
 ## Done when
 
-- [ ] Filas `wager-transactions.fifo` e `wager-transactions-dlq.fifo` provisionadas com redrive
-- [ ] Worker no Fx com lifecycle de shutdown
-- [ ] Inbox `UNIQUE (consumer_name, message_id)` na mesma transação do domínio
-- [ ] Delete da mensagem **somente após** commit durável
-- [ ] Rejeição de negócio confirmada → delete
-- [ ] Falha transitória → retry/backoff; permanente/esgotado → `FAILED` auditável + DLQ (ADR-016)
-- [ ] `providerId` do corpo validado contra a política, além da credencial do broker (ADR-008)
-- [ ] `MessageGroupId` e `MessageDeduplicationId` documentados
-- [ ] Teste: kill após commit e antes do delete → reentrega sem segundo débito
-- [ ] Teste cruzado HTTP + SQS na mesma operação
+- [x] Filas `wager-transactions.fifo` e `wager-transactions-dlq.fifo` provisionadas com redrive
+- [x] Worker no Fx com lifecycle de shutdown
+- [x] Inbox `UNIQUE (consumer_name, message_id)` na mesma transação do domínio
+- [x] Delete da mensagem **somente após** commit durável
+- [x] Rejeição de negócio confirmada → delete
+- [x] Falha transitória → retry/backoff; permanente/esgotado → DLQ (ADR-016)
+- [x] `providerId` do corpo validado contra a política, além da credencial do broker (ADR-008)
+- [x] `MessageGroupId` e `MessageDeduplicationId` documentados
+- [x] Teste: kill após commit e antes do delete → reentrega sem segundo débito
+- [x] Teste cruzado HTTP + SQS na mesma operação
 
 ## Envelope de entrada
 
@@ -35,12 +35,12 @@ Consumir `WagerTransactionRequested` com as mesmas garantias do caso de uso HTTP
 ## Fluxo do worker
 
 1. Long-poll / receive
-2. Validar envelope, hash e `providerId` autorizado
-3. Abrir UoW: inbox + ProcessWagerTransaction + outbox
+2. Validar envelope, hash e `providerId` autorizado (`WAGER_ALLOWED_PROVIDERS`)
+3. Abrir UoW: inbox + `ProcessWagerTransaction.ExecuteIn`
 4. Commit
 5. Delete da mensagem
-6. Em erro transitório: não delete; respeitar visibility timeout + backoff
-7. Em SIGTERM: parar de buscar; concluir ou devolver visibilidade
+6. Em erro transitório: não delete; respeitar visibility timeout
+7. Em SIGTERM: parar de buscar; concluir o lote em andamento
 
 ### Classificação de falhas (ADR-016)
 
@@ -48,19 +48,21 @@ Consumir `WagerTransactionRequested` com as mesmas garantias do caso de uso HTTP
 | --- | --- | --- |
 | Regra de negócio violada | `REJECTED` + `failureCode` | delete (terminal) |
 | Infra transitória (Postgres/SQS indisponível) | sem mudança | não delete; retry com backoff |
-| Infra permanente ou tentativas esgotadas | `FAILED` (auditoria) | DLQ |
-| Envelope inválido / poison sem linha persistida | não persiste | DLQ |
+| Envelope inválido / `providerId` fora da política / hash divergente | não aplica efeito | DLQ + delete |
+| Tentativas esgotadas no broker | — | redrive automático (`maxReceiveCount=5`) |
 
-`providerId` desconhecido ou fora da política é recusado **sem efeito financeiro**; tratar como entrada inválida, não como falha de infra.
+## Configurações
 
-## Configurações a documentar
-
-- Visibility timeout
-- Max receive count → DLQ
-- Limites de tentativas da aplicação
-- Tratamento de mensagem inválida (poison message)
-- `MessageGroupId` recomendado: `walletId` (ordem por carteira)
-- `MessageDeduplicationId`: complementar; **não** substitui inbox/idempotência de domínio
+| Parâmetro | Valor inicial | Onde |
+| --- | --- | --- |
+| Visibility timeout | 30s | LocalStack + `SQS_VISIBILITY_TIMEOUT` |
+| Max receive count → DLQ | 5 | `deploy/localstack/init-queues.sh` |
+| Long-poll | 20s | `SQS_WAIT_TIME` |
+| Lote | até 5 | `SQS_MAX_MESSAGES` |
+| Consumidor (inbox) | `wager-consumer` | `SQS_CONSUMER_NAME` |
+| Origem autorizada | `provider-a,provider-b` | `WAGER_ALLOWED_PROVIDERS` |
+| `MessageGroupId` | `walletId` | produtor (ordem por carteira) |
+| `MessageDeduplicationId` | complementar ao broker | **não** substitui inbox/idempotência |
 
 ## Por quê esta abordagem
 

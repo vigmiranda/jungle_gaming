@@ -26,6 +26,14 @@ type noopRepositories struct{}
 func (noopRepositories) Wallets() port.WalletRepository           { return noopWallets{} }
 func (noopRepositories) Transactions() port.TransactionRepository { return noopTransactions{} }
 func (noopRepositories) Ledger() port.LedgerRepository            { return noopLedger{} }
+func (noopRepositories) Inbox() port.InboxRepository              { return noopInbox{} }
+
+type noopInbox struct{}
+
+func (noopInbox) Record(context.Context, port.InboxMessage) error { return nil }
+func (noopInbox) Find(context.Context, string, string) (port.InboxMessage, error) {
+	return port.InboxMessage{}, port.ErrNotFound
+}
 
 type noopWallets struct{}
 

@@ -75,34 +75,46 @@ func (uc *ProcessWagerTransaction) Execute(
 	ctx context.Context,
 	command ProcessTransactionCommand,
 ) (TransactionResult, error) {
-	parsed, err := uc.parse(command)
-	if err != nil {
-		return TransactionResult{}, err
-	}
-
 	var result TransactionResult
-	err = uc.unitOfWork.Execute(ctx, func(ctx context.Context, repositories port.Repositories) error {
-		target, err := repositories.Wallets().LockByID(ctx, parsed.walletID)
-		if err != nil {
-			return err
-		}
-
-		replay, found, err := uc.findReplay(ctx, repositories, parsed)
-		if err != nil {
-			return err
-		}
-		if found {
-			result = replay
-			return nil
-		}
-
-		result, err = uc.apply(ctx, repositories, target, parsed)
+	err := uc.unitOfWork.Execute(ctx, func(ctx context.Context, repositories port.Repositories) error {
+		var err error
+		result, err = uc.ExecuteIn(ctx, repositories, command)
 		return err
 	})
 	if err != nil {
 		return TransactionResult{}, err
 	}
 	return result, nil
+}
+
+// ExecuteIn aplica a operação dentro de uma unidade de trabalho já aberta.
+//
+// Usado pelo consumidor SQS para gravar a inbox no mesmo commit do efeito
+// financeiro. HTTP continua chamando `Execute`, que abre a transação.
+func (uc *ProcessWagerTransaction) ExecuteIn(
+	ctx context.Context,
+	repositories port.Repositories,
+	command ProcessTransactionCommand,
+) (TransactionResult, error) {
+	parsed, err := uc.parse(command)
+	if err != nil {
+		return TransactionResult{}, err
+	}
+
+	target, err := repositories.Wallets().LockByID(ctx, parsed.walletID)
+	if err != nil {
+		return TransactionResult{}, err
+	}
+
+	replay, found, err := uc.findReplay(ctx, repositories, parsed)
+	if err != nil {
+		return TransactionResult{}, err
+	}
+	if found {
+		return replay, nil
+	}
+
+	return uc.apply(ctx, repositories, target, parsed)
 }
 
 func (uc *ProcessWagerTransaction) parse(command ProcessTransactionCommand) (request, error) {

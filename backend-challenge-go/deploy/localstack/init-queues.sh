@@ -15,8 +15,8 @@ awslocal sqs create-queue \
 
 DLQ_ARN="arn:aws:sqs:${REGION}:${ACCOUNT_ID}:${DLQ_NAME}"
 
-# maxReceiveCount=5 e visibility de 30s são os valores iniciais; a calibração
-# final é feita na etapa 7 do roadmap e documentada no ARCHITECTURE.md.
+# VisibilityTimeout=30s e maxReceiveCount=5: o processamento síncrono cabe no
+# timeout; após 5 receives o broker encaminha à DLQ (ADR-008 / etapa 7).
 awslocal sqs create-queue \
   --queue-name "${QUEUE_NAME}" \
   --attributes "{

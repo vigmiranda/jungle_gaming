@@ -72,6 +72,7 @@ type repositories struct {
 	wallets      *WalletRepository
 	transactions *TransactionRepository
 	ledger       *LedgerRepository
+	inbox        *InboxRepository
 }
 
 func newRepositories(db querier) *repositories {
@@ -79,9 +80,11 @@ func newRepositories(db querier) *repositories {
 		wallets:      &WalletRepository{db: db},
 		transactions: &TransactionRepository{db: db},
 		ledger:       &LedgerRepository{db: db},
+		inbox:        &InboxRepository{db: db},
 	}
 }
 
 func (r *repositories) Wallets() port.WalletRepository           { return r.wallets }
 func (r *repositories) Transactions() port.TransactionRepository { return r.transactions }
 func (r *repositories) Ledger() port.LedgerRepository            { return r.ledger }
+func (r *repositories) Inbox() port.InboxRepository              { return r.inbox }

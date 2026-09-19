@@ -39,6 +39,12 @@ func testConfig() config.Config {
 			WagerQueueURL:       "http://127.0.0.1:4566/000000000000/wager-transactions.fifo",
 			WagerDLQURL:         "http://127.0.0.1:4566/000000000000/wager-transactions-dlq.fifo",
 			IntegrationQueueURL: "http://127.0.0.1:4566/000000000000/wagering-integration-events",
+			ConsumerEnabled:     false,
+			ConsumerName:        "wager-consumer",
+			MaxMessages:         5,
+			WaitTime:            time.Second,
+			VisibilityTimeout:   30 * time.Second,
+			AllowedProviders:    []string{"provider-a", "provider-b"},
 		},
 		OIDC: config.OIDC{
 			IssuerURL:   "http://127.0.0.1:8088/realms/wagering",

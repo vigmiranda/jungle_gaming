@@ -14,8 +14,8 @@ import (
 
 // MoneyInput é o valor monetário como chega do contrato externo.
 type MoneyInput struct {
-	Amount   string
-	Currency string
+	Amount   string `json:"amount"`
+	Currency string `json:"currency"`
 }
 
 // OpenWalletCommand descreve a abertura de carteira.

@@ -1,6 +1,11 @@
 package usecase
 
-import "go.uber.org/fx"
+import (
+	"go.uber.org/fx"
+
+	"github.com/vigmi/backend-challenge-go/internal/application/port"
+	"github.com/vigmi/backend-challenge-go/internal/config"
+)
 
 // Module expõe os casos de uso ao grafo.
 //
@@ -11,5 +16,24 @@ var Module = fx.Module("usecase",
 		NewOpenWallet,
 		NewProcessWagerTransaction,
 		NewReconcileWallet,
+		NewHandleWagerMessageFromConfig,
 	),
 )
+
+// NewHandleWagerMessageFromConfig adapta a configuração ao caso de uso.
+func NewHandleWagerMessageFromConfig(
+	unitOfWork port.UnitOfWork,
+	process *ProcessWagerTransaction,
+	clock port.Clock,
+	ids port.IDGenerator,
+	cfg config.Config,
+) *HandleWagerMessage {
+	return NewHandleWagerMessage(
+		unitOfWork,
+		process,
+		clock,
+		ids,
+		cfg.SQS.ConsumerName,
+		cfg.SQS.AllowedProviders,
+	)
+}
