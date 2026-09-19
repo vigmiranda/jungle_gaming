@@ -5,6 +5,9 @@ carteiras com idempotência persistente, ledger append-only e recuperação
 multi-instância. Stack: **Go**, **Uber Fx**, **chi**, **pgx**, **PostgreSQL**,
 **Keycloak**, **LocalStack (SQS)**.
 
+Todo o código da solução vive na **raiz deste repositório**. O módulo Go
+permanece `github.com/vigmi/backend-challenge-go` (imports inalterados).
+
 O enunciado original está em [`docs/enunciado.md`](docs/enunciado.md).  
 Decisões técnicas: [`ARCHITECTURE.md`](ARCHITECTURE.md).  
 Testes: [`docs/testing.md`](docs/testing.md) · Stress: [`docs/stress-tests.md`](docs/stress-tests.md).  
@@ -19,6 +22,8 @@ Validação manual: [`bruno/README.md`](bruno/README.md).
 - k6 (opcional, só para `make load-test`)
 
 ## Subir o ambiente
+
+Na raiz do repositório:
 
 ```sh
 cp .env.example .env   # ajuste portas se necessário
