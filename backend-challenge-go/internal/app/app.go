@@ -15,6 +15,7 @@ import (
 	"github.com/vigmi/backend-challenge-go/internal/platform/httpserver"
 	"github.com/vigmi/backend-challenge-go/internal/platform/logging"
 	"github.com/vigmi/backend-challenge-go/internal/platform/postgres"
+	"github.com/vigmi/backend-challenge-go/internal/platform/postgres/repository"
 )
 
 // Module reúne todos os módulos da aplicação.
@@ -28,6 +29,7 @@ func Module() fx.Option {
 		logging.Module,
 		health.Module,
 		postgres.Module,
+		repository.Module,
 		awssqs.Module,
 		httpserver.Module,
 		fx.WithLogger(func(log *slog.Logger) fxevent.Logger {
