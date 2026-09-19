@@ -1,7 +1,10 @@
-.PHONY: help deps-up deps-down up down build run test test-race cover vet fmt check run-multi stop-multi
+.PHONY: help deps-up deps-down up down build run migrate-up migrate-down migrate-version \
+	test test-integration test-race test-race-docker cover cover-domain vet fmt check bruno \
+	run-multi stop-multi
 
 GO ?= go
 COVER_PACKAGES ?= ./internal/...
+STEPS ?= 1
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -24,8 +27,20 @@ build: ## Compila o binário da API
 run: ## Executa a API local usando as variáveis do .env
 	$(GO) run ./cmd/api
 
-test: ## Executa a suíte completa
+migrate-up: ## Aplica as migrations pendentes
+	$(GO) run ./cmd/migrate -command up
+
+migrate-down: ## Reverte a última migration (STEPS=0 reverte todas)
+	$(GO) run ./cmd/migrate -command down -steps $(STEPS)
+
+migrate-version: ## Mostra a versão aplicada do schema
+	$(GO) run ./cmd/migrate -command version
+
+test: ## Executa a suíte de testes rápidos
 	$(GO) test ./...
+
+test-integration: ## Executa os testes de integração (sobe PostgreSQL via testcontainers)
+	$(GO) test -tags=integration -count=1 ./tests/...
 
 test-race: ## Executa a suíte com o detector de corridas
 	$(GO) test -race ./...
