@@ -64,6 +64,7 @@ make migrate-down           # reverte a última (STEPS=0 reverte todas)
 | `cmd/api` | Entrada do processo; só compõe o Fx |
 | `cmd/migrate` | Aplicação e reversão das migrations |
 | `internal/domain` | Domínio puro, sem Fx, HTTP, SQS ou SQL |
+| `internal/application` | Ports e casos de uso |
 | `internal/platform` | Adapters de infraestrutura e borda HTTP |
 | `internal/app` | Composição Fx |
 | `migrations` | SQL versionado, embarcado no binário |

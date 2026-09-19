@@ -31,7 +31,11 @@ Status: `proposta` → `aceita` → `implementada` → `revisada`.
 | --- | --- |
 | Status | aceita |
 | Contexto | Preferência do desafio por SQL explícito |
+| Status | implementada |
 | Decisão | `pgx` + SQL; Unit of Work por operação financeira |
+| Delimitação | A transação começa e termina em `UnitOfWork.Execute`; os repositórios daquela chamada compartilham a mesma `pgx.Tx`. Leituras que não movimentam saldo usam `ReadOnly()`, fora de transação |
+| Ports | Interfaces em `internal/application/port`, do lado de quem consome; a implementação `pgx` fica confinada à borda |
+| Tradução de erros | SQLSTATE `23505`, `23503` e `23514` viram `port.ErrConflict`; ausência de linha vira `port.ErrNotFound`. Os casos de uso não conhecem SQLSTATE |
 | Consequências | Locks e commits visíveis; sem GORM; repositórios não abrem commit escondido |
 
 ## ADR-004 — Concorrência por carteira

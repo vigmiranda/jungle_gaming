@@ -6,12 +6,26 @@ Persistir o domínio com SQL explícito (`pgx`), delimitando **uma** unidade de 
 
 ## Done when
 
-- [ ] Ports de repositório definidos no domínio/aplicação
-- [ ] Implementação `pgx` com SQL explícito
-- [ ] `UnitOfWork` / `Tx` compartilhada entre repositórios
-- [ ] Lock por carteira (`SELECT ... FOR UPDATE`) demonstrável
-- [ ] Documentação de onde começa e termina a transação SQL
-- [ ] Teste: duas conexões disputam a mesma carteira sem lost update
+- [x] Ports de repositório definidos na camada de aplicação
+- [x] Implementação `pgx` com SQL explícito
+- [x] `UnitOfWork` compartilhada entre repositórios
+- [x] Lock por carteira (`SELECT ... FOR UPDATE`) demonstrável
+- [x] Documentação de onde começa e termina a transação SQL
+- [x] Teste: duas conexões disputam a mesma carteira sem lost update
+
+## Notas de implementação
+
+| Item | Onde |
+| --- | --- |
+| Ports | `internal/application/port` — interfaces do lado de quem consome |
+| Implementação | `internal/platform/postgres/repository` |
+| Transação | `UnitOfWork.Execute` abre, entrega os repositórios e confirma; `ReadOnly()` serve as leituras sem lock |
+| Erros | SQLSTATE traduzido para `port.ErrNotFound` e `port.ErrConflict`, com o nome da constraint na mensagem |
+
+- Nenhum repositório abre commit: a transação começa e termina em `Execute`, e todos os repositórios daquela chamada compartilham a mesma `pgx.Tx`.
+- `UpdateBalance` não usa predicado de versão. A linha já está bloqueada pelo `FOR UPDATE`, que é o mecanismo de concorrência (ADR-004); a versão é invariante de domínio e payload de evento.
+- Toda escrita confirma que atingiu exatamente uma linha: um `UPDATE` que não encontra a linha é falha de premissa, não sucesso silencioso.
+- `ListByWallet` busca uma linha além do limite para descobrir se existe página seguinte sem uma contagem extra.
 
 ## Unidade de trabalho (ordem típica no mesmo `BEGIN…COMMIT`)
 
