@@ -159,6 +159,45 @@ Fluxo completo e asserções: coleção Bruno (`make bruno`).
 | `GET` | `/wagering/transactions/{id}` | interno ou provedor dono |
 | `GET` | `/providers/{providerId}/wagering/transactions/{externalId}` | interno ou provedor dono |
 
+### Catálogo HTTP e `failureCode`
+
+Situações distinguíveis pelo contrato (ADR-013). Corpos de erro usam
+`{"error","message","failureCode?"}`; sucessos de wagering usam
+`transactionResponse` (`transactionId`, `status`, `balance?`, `failureCode?`,
+`idempotentReplay`).
+
+| Situação | HTTP | Corpo / notas |
+| --- | ---: | --- |
+| Abertura de carteira criada | 201 | `walletResponse` (`id`, `playerId`, `balance`, `version`) |
+| Operação `PROCESSED` (ou replay equivalente) | 200 | `status`, `balance` da época, `idempotentReplay` |
+| `PENDING_REFERENCE` (reversão antes da referência) | 202 | Único uso de 202; processamento síncrono (ADR-012) |
+| Rejeição de negócio (`REJECTED`) | 422 | `failureCode` estável (tabela abaixo) |
+| Entrada inválida (JSON, Money não canônico, cursor) | 400 | `error` + `message` (sem `failureCode`) |
+| Token ausente, inválido ou expirado | 401 | `error: unauthorized` |
+| Provedor errado / operação interna sem papel | 403 | `error: forbidden` — sem efeito financeiro |
+| Recurso inexistente | 404 | `error: not_found` |
+| Conflito (carteira duplicada, chave≠payload, externalId) | 409 | `error` de conflito; não é rejeição de negócio |
+| Falha permanente registrada (`FAILED`) | 503 | Raro na API síncrona; ver ADR-016 |
+| Infra / dependência indisponível | 503 | `error: service_unavailable` |
+
+`failureCode` (contrato estável; fonte: `internal/domain/wagering/failure.go`):
+
+| Código | Quando |
+| --- | --- |
+| `INSUFFICIENT_FUNDS` | `BET` sem saldo suficiente |
+| `REVERSAL_EXCEEDS_BALANCE` | `ROLLBACK` que deixaria saldo negativo (≠ `INSUFFICIENT_FUNDS`) |
+| `REFERENCE_NOT_FOUND` | Referência não chegou no TTL / max attempts |
+| `REFERENCE_NOT_PROCESSED` | Referência existe, mas não é elegível (terminal inválida / tipo) |
+| `REFERENCE_MISMATCH` | Referência discorda em provedor, jogador, carteira, moeda, rodada ou valor |
+| `DUPLICATE_REVERSAL` | Segunda reversão bem-sucedida da mesma referência (qualquer tipo) |
+| `INVALID_AMOUNT` | Valor fora da política do tipo / forma não canônica |
+| `CURRENCY_MISMATCH` | Moeda diferente da carteira |
+| `WALLET_PLAYER_MISMATCH` | Carteira não pertence ao jogador informado |
+| `OPENING_NOT_ALLOWED` | Tipo `OPENING` via HTTP/SQS |
+| `INFRASTRUCTURE_FAILURE` | Estado `FAILED` de infra permanente (auditoria / DLQ) |
+
+Detalhes de modelo e máquina de estados: [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Testes
 
 ```sh

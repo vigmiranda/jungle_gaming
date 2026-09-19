@@ -104,6 +104,25 @@ saldo da época sem reler a carteira nem recalcular pelo ledger.
 | Infra transitória | retry / visibility / backoff |
 | Infra permanente / poison | DLQ; `FAILED` quando houver linha de auditoria |
 
+### `failureCode` estáveis
+
+Fonte canônica: `internal/domain/wagering/failure.go`. Catálogo também no
+[`README.md`](README.md).
+
+| Código | Quando |
+| --- | --- |
+| `INSUFFICIENT_FUNDS` | `BET` sem saldo suficiente |
+| `REVERSAL_EXCEEDS_BALANCE` | `ROLLBACK` que deixaria saldo negativo (≠ `INSUFFICIENT_FUNDS`) |
+| `REFERENCE_NOT_FOUND` | Referência não chegou no TTL / max attempts |
+| `REFERENCE_NOT_PROCESSED` | Referência existe, mas não é elegível |
+| `REFERENCE_MISMATCH` | Discordância de provedor, jogador, carteira, moeda, rodada ou valor |
+| `DUPLICATE_REVERSAL` | Segunda reversão bem-sucedida da mesma referência (qualquer tipo) |
+| `INVALID_AMOUNT` | Valor fora da política do tipo / forma não canônica |
+| `CURRENCY_MISMATCH` | Moeda diferente da carteira |
+| `WALLET_PLAYER_MISMATCH` | Carteira não pertence ao jogador informado |
+| `OPENING_NOT_ALLOWED` | Tipo `OPENING` via HTTP/SQS |
+| `INFRASTRUCTURE_FAILURE` | Estado `FAILED` de infra permanente (auditoria / DLQ) |
+
 ## Correlação (ADR-017)
 
 - `correlationId` na borda: header `X-Correlation-Id` ou UUID; no SQS do envelope
@@ -117,10 +136,27 @@ saldo da época sem reler a carteira nem recalcular pelo ledger.
 - `OIDC_ISSUER_URL` = `iss` externo; `OIDC_JWKS_URL` pode apontar ao hostname
   interno do Compose.
 
-## HTTP (ADR-015)
+## HTTP (ADR-015, ADR-013)
 
 - `chi` + middlewares: correlação, recover, logging JSON (redaction), auth.
 - `/metrics` Prometheus (etapa 10). Health `live` / `ready` (Postgres + SQS).
+- Erros: `{"error","message","failureCode?"}`. Sucesso wagering:
+  `transactionId`, `status`, `balance?`, `failureCode?`, `idempotentReplay`.
+
+| Situação | HTTP |
+| --- | ---: |
+| Abertura de carteira | 201 |
+| `PROCESSED` / replay equivalente | 200 |
+| `PENDING_REFERENCE` | 202 |
+| Entrada inválida | 400 |
+| Token ausente / inválido / expirado | 401 |
+| Forbidden (provedor / papel) | 403 |
+| Não encontrado | 404 |
+| Conflito (idempotência / carteira) | 409 |
+| Rejeição de negócio (`REJECTED`) | 422 |
+| `FAILED` / infra indisponível | 503 |
+
+Catálogo completo (corpos e `failureCode`): [`README.md`](README.md).
 
 ## Fx e shutdown (ADR-001, ADR-011)
 
