@@ -155,7 +155,9 @@ saldo da época sem reler a carteira nem recalcular pelo ledger.
 ## Trabalho não concluído / diferenciais
 
 - OpenTelemetry tracing e dashboards
-- Relatório completo de carga (p50/p95/p99) como artefato formal
 - Partidas dobradas
 - Assinatura criptográfica do envelope SQS
 - Multi-moeda operacional além de BRL nos fluxos principais
+
+Carga progressiva com p50/p95/p99, erros, conflitos e atraso da outbox: ver
+[`docs/load-testing.md`](docs/load-testing.md) (`scripts/run-load-test`).

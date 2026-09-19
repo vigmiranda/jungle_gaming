@@ -1,8 +1,7 @@
-# Progressive load (opcional — STRESS_TESTS §13).
-# Requer k6 instalado e ambiente stress no ar.
-# Exemplo:
-#   export BASE_URL=http://localhost:8090 PROVIDER_TOKEN=... 
-#   k6 run loadtests/progressive-load.js
+// Progressive load — smoke de /health/live (não cobre o diferencial do enunciado).
+// Carga formal: docs/load-testing.md e scripts/run-load-test.
+// Exemplo:
+//   k6 run -e BASE_URL=http://localhost:8090 loadtests/progressive-load.js
 import http from "k6/http";
 import { sleep } from "k6";
 

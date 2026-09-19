@@ -1,6 +1,6 @@
 .PHONY: help deps-up deps-down up down build run migrate-up migrate-down migrate-version \
 	test test-integration test-race test-race-docker cover cover-domain vet fmt check bruno \
-	run-multi stop-multi stress stress-up fault-tests load-test
+	run-multi stop-multi stress stress-up fault-tests load-test load-test-health
 
 GO ?= go
 COVER_PACKAGES ?= ./internal/...
@@ -92,5 +92,8 @@ fault-tests: ## Smoke dos scripts de fault injection
 	chmod +x tests/fault/*.sh
 	./tests/fault/run_smoke.sh
 
-load-test: ## Carga progressiva opcional (requer k6)
+load-test: ## Carga formal wagering + scrape outbox lag (requer k6 + stress-up)
+	./scripts/run-load-test.sh
+
+load-test-health: ## Smoke k6 só em /health/live
 	k6 run loadtests/progressive-load.js

@@ -7,3 +7,6 @@ coverage.html
 cov
 cov.txt
 cover-app*
+loadtests/results/*
+!loadtests/results/.gitkeep
+!loadtests/results/sample-summary.md
