@@ -234,6 +234,28 @@ Status: `proposta` → `aceita` → `implementada` → `revisada`.
 | CI | Três jobs: build e análise estática (`gofmt`, `go mod verify`, `go vet`, `go build`); testes com `-race` e o gate de 100% no domínio; integração subindo o Compose e executando a coleção Bruno |
 | Consequências | Histórico com uma entrega por etapa; regressão barrada antes do merge; o job de integração prova que o ambiente sobe a partir de um checkout limpo, que é o critério de entrega do desafio |
 
+## ADR-024 — Migrations versionadas e embarcadas, aplicadas fora do boot
+
+| Campo | Valor |
+| --- | --- |
+| Status | implementada |
+| Contexto | O desafio exige migrations versionadas com aplicação e reversão documentadas, em ambiente com várias instâncias |
+| Decisão | `golang-migrate` com driver `pgx/v5`, arquivos `NNNNNN_nome.{up,down}.sql` embarcados via `embed.FS` e aplicados pelo comando `cmd/migrate` |
+| Quando roda | Nunca no start da aplicação. No Compose, um serviço `migrate` roda antes da API (`service_completed_successfully`); em produção seria uma etapa do deploy |
+| Alternativas | Migrar no boot da API (vira corrida entre instâncias); migrador próprio (controle total, mas reinventa uma roda madura); arquivos soltos ao lado do binário (a imagem distroless carrega só o executável) |
+| Consequências | A mesma imagem entrega API e migrador; o estado sujo é reportado em vez de ignorado; `down` é executável e testado, não apenas documentado |
+
+## ADR-025 — Invariantes financeiras impostas pelo schema
+
+| Campo | Valor |
+| --- | --- |
+| Status | implementada |
+| Contexto | Locks locais e a deduplicação do SQS FIFO não protegem contra bug na aplicação, instância antiga em execução ou escrita manual |
+| Decisão | Saldo não negativo, política de valor por tipo, separação entre origem interna e externa, uniques de idempotência por provedor, uma reversão bem-sucedida por tipo e equação do ledger, todos como constraints nomeadas |
+| Moeda | Chave estrangeira composta `(wallet_id, currency)` para `wallets (id, currency)`, em transações e lançamentos: o banco garante que toda movimentação usa a moeda da carteira |
+| Ledger | Gatilho `BEFORE UPDATE OR DELETE` que aborta com `restrict_violation`, escolhido em vez de revogação de privilégio porque também vale para o dono da tabela |
+| Consequências | Bug de aplicação vira erro SQL reproduzível; cada constraint tem nome estável e teste de integração que prova a recusa |
+
 ---
 
 ## Limitações e trabalho consciente

@@ -59,6 +59,19 @@ services:
       timeout: 5s
       retries: 30
 
+  # As migrations rodam em um serviço próprio, não no start da API: com várias
+  # instâncias subindo em paralelo, migrar no boot vira uma corrida.
+  migrate:
+    build: .
+    entrypoint: ["/migrate"]
+    command: ["-command", "up"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_DSN: postgres://wagering:wagering@postgres:5432/wagering?sslmode=disable
+    restart: "no"
+
   api:
     build: .
     depends_on:
@@ -68,6 +81,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       APP_ENV: local
       LOG_LEVEL: info

@@ -65,6 +65,11 @@ jobs:
       - name: Gate de cobertura do domínio
         run: ./scripts/check-domain-coverage.sh
 
+      # Sobem PostgreSQL real via testcontainers: o desafio proíbe provar
+      # constraints, migrations e atomicidade com mocks.
+      - name: Testes de integração
+        run: go test -tags=integration -count=1 ./tests/...
+
   integration:
     name: Ambiente local e coleção Bruno
     runs-on: ubuntu-latest

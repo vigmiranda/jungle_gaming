@@ -6,13 +6,27 @@ Impor invariantes financeiras **no PostgreSQL**, independentemente de locks loca
 
 ## Done when
 
-- [ ] Migrations versionadas com up **e** down documentados
-- [ ] Constraints da tabela abaixo aplicadas
-- [ ] Ledger protegido contra UPDATE/DELETE
-- [ ] Distinção schema entre origem `INTERNAL` e `EXTERNAL`
-- [ ] Resultado do processamento persistido para replay (ADR-014)
-- [ ] Índice que sustenta o cursor opaco do ledger (ADR-018)
-- [ ] Teste de integração que prova **cada** constraint desta etapa (ex.: saldo negativo rejeitado, ledger imutável, uniques de idempotência)
+- [x] Migrations versionadas com up **e** down documentados
+- [x] Constraints da tabela abaixo aplicadas
+- [x] Ledger protegido contra UPDATE/DELETE
+- [x] Distinção schema entre origem `INTERNAL` e `EXTERNAL`
+- [x] Resultado do processamento persistido para replay (ADR-014)
+- [x] Índice que sustenta o cursor opaco do ledger (ADR-018)
+- [x] Teste de integração que prova **cada** constraint desta etapa (ex.: saldo negativo rejeitado, ledger imutável, uniques de idempotência)
+
+## Notas de implementação
+
+| Item | Onde |
+| --- | --- |
+| SQL versionado | `migrations/000001_initial_schema.{up,down}.sql`, embarcado com `embed.FS` |
+| Comando | `cmd/migrate` (`up`, `down -steps N`, `version`), exposto no Makefile |
+| Execução no Compose | Serviço `migrate` roda antes da API, via `service_completed_successfully` |
+| Testes | `tests/integration` com build tag `integration`, PostgreSQL real por testcontainers |
+
+- A moeda da movimentação é garantida por chave estrangeira composta para `wallets (id, currency)`: nenhuma transação ou lançamento pode usar moeda diferente da carteira.
+- A imutabilidade do ledger é um gatilho que aborta `UPDATE` e `DELETE` com `restrict_violation`, escolhido em vez de revogação de privilégio porque também vale para o dono da tabela.
+- O índice parcial de reversão só considera as processadas, então uma tentativa rejeitada não bloqueia a reversão legítima seguinte.
+- Decisões registradas em ADR-024 (migrations) e ADR-025 (invariantes no schema).
 
 ## Tabelas principais (mínimo)
 

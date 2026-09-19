@@ -47,11 +47,14 @@ Uma etapa do roadmap só fecha quando as três regras abaixo valem.
 ## Comandos
 
 ```sh
-docker compose up -d        # ambiente local completo
+docker compose up -d        # ambiente local completo, já com migrations aplicadas
 make check                  # fmt, vet e testes com -race
 make test-race-docker       # -race em container, sem toolchain C
+make test-integration       # integração com PostgreSQL real (testcontainers)
 make cover-domain           # gate de 100% de cobertura no domínio
 make bruno                  # coleção Bruno contra o ambiente local
+make migrate-up             # aplica migrations
+make migrate-down           # reverte a última (STEPS=0 reverte todas)
 ```
 
 ## Estrutura
@@ -59,9 +62,12 @@ make bruno                  # coleção Bruno contra o ambiente local
 | Caminho | Conteúdo |
 | --- | --- |
 | `cmd/api` | Entrada do processo; só compõe o Fx |
+| `cmd/migrate` | Aplicação e reversão das migrations |
 | `internal/domain` | Domínio puro, sem Fx, HTTP, SQS ou SQL |
 | `internal/platform` | Adapters de infraestrutura e borda HTTP |
 | `internal/app` | Composição Fx |
+| `migrations` | SQL versionado, embarcado no binário |
+| `tests/integration` | Testes com infraestrutura real (build tag `integration`) |
 | `bruno/` | Coleção de validação manual |
 | `roadmap/` | Plano de execução e ADRs |
 | `deploy/` | Realm do Keycloak e provisionamento das filas |
