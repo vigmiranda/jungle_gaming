@@ -192,6 +192,23 @@ func NewOpening(params OpeningParams) (*Transaction, error) {
 	}, nil
 }
 
+// NewProcessedOpening cria a abertura já concluída.
+//
+// A abertura com crédito nasce em `PROCESSED` no mesmo commit da carteira, sem
+// estado intermediário observável. Criar e concluir em um passo mantém essa
+// regra dentro do domínio, em vez de depender de o chamador lembrar da segunda
+// chamada.
+func NewProcessedOpening(params OpeningParams, result Result) (*Transaction, error) {
+	opening, err := NewOpening(params)
+	if err != nil {
+		return nil, err
+	}
+	if err := opening.MarkProcessed(result, params.CreatedAt); err != nil {
+		return nil, err
+	}
+	return opening, nil
+}
+
 // MarkProcessed conclui a operação com sucesso.
 func (t *Transaction) MarkProcessed(result Result, now time.Time) error {
 	if err := result.Balance.Validate(); err != nil {

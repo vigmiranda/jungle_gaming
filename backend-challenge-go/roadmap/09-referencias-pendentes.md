@@ -35,7 +35,7 @@ Tratar `REFUND`/`ROLLBACK` (e demais casos) que chegam **antes** da transação 
 | `REJECTED` / `FAILED` | Rejeitar imediatamente | `REFERENCE_NOT_PROCESSED` |
 | Tipo incompatível ou divergência de provider/player/wallet/currency/round | Rejeitar imediatamente | `REFERENCE_NOT_PROCESSED` |
 | TTL ou max attempts esgotados sem a referência chegar | Rejeitar | `REFERENCE_NOT_FOUND` |
-| Segunda reversão do mesmo tipo sobre a mesma referência | Rejeitar | `DUPLICATE_REVERSAL` |
+| Referência já revertida, por qualquer tipo | Rejeitar | `DUPLICATE_REVERSAL` |
 
 Rejeitar cedo uma referência ainda em voo quebraria o cenário obrigatório de reversão fora de ordem; esperar sem limite criaria pendência eterna — daí a combinação de espera com TTL/max attempts.
 

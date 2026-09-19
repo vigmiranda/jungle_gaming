@@ -54,9 +54,9 @@ cover: ## Relatório de cobertura de todos os pacotes internos
 	$(GO) test -coverprofile=coverage.out $(COVER_PACKAGES)
 	$(GO) tool cover -func=coverage.out
 
-cover-domain: ## Gate de cobertura do domínio e da aplicação (ADR-019)
+cover-domain: ## Gate de 100% de cobertura no domínio e na aplicação (ADR-019)
 	./scripts/check-domain-coverage.sh ./internal/domain/... 100.0
-	./scripts/check-domain-coverage.sh ./internal/application/... 98.0
+	./scripts/check-domain-coverage.sh ./internal/application/... 100.0
 
 vet: ## Análise estática
 	$(GO) vet ./...

@@ -104,7 +104,7 @@ Ver a seção [Regra de testes](#regra-de-testes) abaixo.
 | Camada | Meta |
 | --- | --- |
 | Domínio (`Money`, `Wallet`, `WagerTransaction`, ledger) | **100% de cobertura, gate rígido** — abaixo disso a etapa não fecha |
-| Casos de uso | 100% dos fluxos de decisão: replay, conflito de chave, conflito de `externalTransactionId`, rejeição, pendência, opening com e sem saldo |
+| Casos de uso | **100% de cobertura, gate rígido**, incluindo replay, conflitos, rejeições, pendência e opening com e sem saldo |
 | Adapters (HTTP, SQS, `pgx`) | 100% dos contratos e caminhos de falha, via integração com Postgres, LocalStack e Keycloak reais |
 | `main`, wiring Fx, Dockerfile, clients AWS | Sem meta de percentual; validados por teste de composição (start/stop) e integração |
 

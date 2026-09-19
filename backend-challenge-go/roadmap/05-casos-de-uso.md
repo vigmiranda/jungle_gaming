@@ -74,7 +74,8 @@ O passo 5 não existe quando a referência é obrigatória e ainda não chegou: 
 
 - `REFUND` só de `BET` `PROCESSED`
 - `ROLLBACK` de `BET` / `WIN` / `REFUND` `PROCESSED`
-- Mesma referência: no máximo um REFUND e um ROLLBACK de sucesso; impedir devolução duplicada do mesmo débito
+- Mesma referência: no máximo **uma** reversão bem-sucedida, de qualquer tipo. Aceitar um `REFUND` e um `ROLLBACK` sobre a mesma aposta devolveria o mesmo débito duas vezes
+- Reverter a própria reversão continua válido: o `ROLLBACK` de um `REFUND` desfaz aquele crédito, não o débito original
 - Concordância: provider, player, wallet, currency, round
 - Valor da reversão = valor referenciado (sem parcial)
 - Rollback que debitaria além do saldo: `REJECTED` com código **diferente** de `INSUFFICIENT_FUNDS` de BET
@@ -92,7 +93,7 @@ O passo 5 não existe quando a referência é obrigatória e ainda não chegou: 
 | `REFERENCE_NOT_PROCESSED` | referência terminal não elegível (`REJECTED`/`FAILED`/tipo incompatível) |
 | `INVALID_AMOUNT` | LOSS ≠ 0.00, escala inválida, forma não canônica, etc. |
 | `CURRENCY_MISMATCH` | moeda incompatível |
-| `DUPLICATE_REVERSAL` | segunda reversão do mesmo tipo |
+| `DUPLICATE_REVERSAL` | segunda reversão sobre a mesma referência, de qualquer tipo |
 | `REVERSAL_EXCEEDS_BALANCE` | rollback que quebraria saldo ≥ 0 |
 | `OPENING_NOT_ALLOWED` | OPENING via canal externo |
 

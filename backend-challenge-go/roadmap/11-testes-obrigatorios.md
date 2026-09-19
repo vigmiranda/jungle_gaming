@@ -11,7 +11,7 @@ Provar as garantias com `testing`/`go test`, infraestrutura real e `-race` — s
 | Camada | Meta |
 | --- | --- |
 | Domínio | 100% de cobertura, gate rígido |
-| Casos de uso | 100% dos fluxos de decisão (replay, conflitos, rejeições, pendência, opening com e sem saldo) |
+| Casos de uso | 100% de cobertura, gate rígido |
 | Adapters HTTP / SQS / `pgx` | 100% dos contratos e caminhos de falha, com infra real |
 | `main`, wiring Fx, Dockerfile, clients AWS | Sem meta de percentual; teste de composição + integração |
 

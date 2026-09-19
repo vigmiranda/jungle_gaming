@@ -313,7 +313,15 @@ func TestReversalPropagatesInfrastructureFailures(t *testing.T) {
 		name  string
 		setup func(*fixture)
 	}{
-		{"consulta da referência", func(f *fixture) { f.unitOfWork.state.findExternalErr = failure }},
+		{
+			// A falha atinge apenas a busca da referência: a checagem de replay
+			// da própria reversão precisa passar para o fluxo chegar até lá.
+			name: "consulta da referência",
+			setup: func(f *fixture) {
+				f.unitOfWork.state.findExternalErr = failure
+				f.unitOfWork.state.findExternalErrOn = "bet-1"
+			},
+		},
 		{"consulta de reversão existente", func(f *fixture) { f.unitOfWork.state.reversalCheckErr = failure }},
 	}
 

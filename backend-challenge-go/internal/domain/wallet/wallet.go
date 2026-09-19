@@ -149,6 +149,19 @@ type Movement struct {
 	Version       int64
 }
 
+// OpeningMovement descreve o crédito inicial de uma carteira recém-aberta.
+//
+// A abertura aplica o saldo direto no construtor, sem passar por Credit, mas o
+// lançamento no ledger precisa dos mesmos três valores de qualquer movimentação.
+func (w *Wallet) OpeningMovement() Movement {
+	return Movement{
+		Amount:        w.balance,
+		BalanceBefore: money.Zero(w.currency),
+		BalanceAfter:  w.balance,
+		Version:       w.version,
+	}
+}
+
 // Credit soma o valor ao saldo.
 func (w *Wallet) Credit(amount money.Money, now time.Time) (Movement, error) {
 	if err := w.validateMovement(amount, now); err != nil {

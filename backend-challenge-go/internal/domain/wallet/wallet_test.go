@@ -124,6 +124,27 @@ func TestOpenRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+// A abertura aplica o saldo no construtor, sem passar por Credit, mas o
+// lançamento no ledger precisa dos mesmos três valores.
+func TestOpeningMovementDescribesTheInitialCredit(t *testing.T) {
+	opened := openWallet(t, "1000.00")
+
+	movement := opened.OpeningMovement()
+
+	if movement.Amount.String() != "1000.00" {
+		t.Errorf("Amount = %s, esperado 1000.00", movement.Amount)
+	}
+	if movement.BalanceBefore.String() != "0.00" || movement.BalanceAfter.String() != "1000.00" {
+		t.Errorf("saldos = %s → %s", movement.BalanceBefore, movement.BalanceAfter)
+	}
+	if movement.Version != 1 {
+		t.Errorf("Version = %d, esperada 1", movement.Version)
+	}
+	if movement.BalanceBefore.Currency() != money.BRL {
+		t.Errorf("moeda = %q, esperada BRL", movement.BalanceBefore.Currency())
+	}
+}
+
 func TestCreditIncreasesBalanceAndVersion(t *testing.T) {
 	opened := openWallet(t, "1000.00")
 

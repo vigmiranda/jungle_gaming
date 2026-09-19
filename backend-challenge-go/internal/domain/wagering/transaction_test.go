@@ -167,6 +167,55 @@ func TestNewOpeningCarriesOnlyInternalMetadata(t *testing.T) {
 	}
 }
 
+// A abertura com crédito nasce concluída: não há estado intermediário
+// observável entre criar a carteira e registrar o crédito inicial.
+func TestNewProcessedOpeningIsBornProcessed(t *testing.T) {
+	opening, err := wagering.NewProcessedOpening(wagering.OpeningParams{
+		ID:        transactionID,
+		WalletID:  walletID,
+		PlayerID:  playerID,
+		Amount:    brl(t, "1000.00"),
+		CreatedAt: createdAt,
+	}, result(t, "1000.00", 1))
+	if err != nil {
+		t.Fatalf("NewProcessedOpening devolveu erro: %v", err)
+	}
+
+	if opening.Status() != wagering.Processed {
+		t.Errorf("Status = %q, esperado PROCESSED", opening.Status())
+	}
+	recorded, ok := opening.Result()
+	if !ok || recorded.Balance.String() != "1000.00" || recorded.WalletVersion != 1 {
+		t.Errorf("resultado = %+v (%v)", recorded, ok)
+	}
+}
+
+func TestNewProcessedOpeningRejectsInvalidInput(t *testing.T) {
+	valid := wagering.OpeningParams{
+		ID: transactionID, WalletID: walletID, PlayerID: playerID,
+		Amount: brl(t, "1000.00"), CreatedAt: createdAt,
+	}
+
+	t.Run("abertura inválida", func(t *testing.T) {
+		params := valid
+		params.Amount = brl(t, "0.00")
+
+		_, err := wagering.NewProcessedOpening(params, result(t, "0.00", 1))
+
+		if !errors.Is(err, wagering.ErrInvalidAmountForKind) {
+			t.Errorf("erro = %v, esperado ErrInvalidAmountForKind", err)
+		}
+	})
+
+	t.Run("resultado inválido", func(t *testing.T) {
+		_, err := wagering.NewProcessedOpening(valid, result(t, "1000.00", 0))
+
+		if !errors.Is(err, wagering.ErrInvalidTransactionState) {
+			t.Errorf("erro = %v, esperado ErrInvalidTransactionState", err)
+		}
+	})
+}
+
 func TestNewOpeningRejectsInvalidInput(t *testing.T) {
 	var zeroID shared.ID
 	var uninitialized money.Money

@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # Gate de cobertura (ADR-019).
 #
-# O domínio exige 100%: é onde vivem as invariantes financeiras e não há
-# dependência externa que justifique trecho sem teste.
+# Domínio e camada de aplicação exigem 100%: é onde vivem as invariantes
+# financeiras e as decisões de negócio, sem dependência externa que justifique
+# trecho sem teste.
 #
-# A camada de aplicação usa um piso pouco abaixo de 100%. O que resta são
-# propagações de erro de transições de domínio que o estado validado não
-# consegue disparar — por exemplo, concluir uma transação recém-criada. As
-# alcançáveis por chamada direta já têm teste white-box; as demais permanecem
-# como defesa contra refatoração.
+# Quando um caminho de erro não é alcançável, a saída é eliminar o ramo — mover
+# a sequência para um construtor de domínio ou compartilhar um helper entre os
+# chamadores —, nunca afrouxar validação para cobri-lo.
 #
 # Uso: check-domain-coverage.sh [pacotes] [piso]
 set -euo pipefail
