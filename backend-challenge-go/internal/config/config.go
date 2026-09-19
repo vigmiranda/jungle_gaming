@@ -55,7 +55,7 @@ type Postgres struct {
 	ConnectTimeout time.Duration
 }
 
-// SQS controla o acesso às filas.
+// SQS controla o acesso às filas e o consumidor de wagering.
 type SQS struct {
 	Region              string
 	Endpoint            string
@@ -64,6 +64,19 @@ type SQS struct {
 	WagerQueueURL       string
 	WagerDLQURL         string
 	IntegrationQueueURL string
+
+	// ConsumerEnabled liga o worker de long-poll no start do processo.
+	ConsumerEnabled bool
+	// ConsumerName identifica o consumidor na inbox.
+	ConsumerName string
+	// MaxMessages é o tamanho do lote de ReceiveMessage (1–10).
+	MaxMessages int32
+	// WaitTime é o long-poll do ReceiveMessage.
+	WaitTime time.Duration
+	// VisibilityTimeout deve ser maior que o tempo máximo de processamento.
+	VisibilityTimeout time.Duration
+	// AllowedProviders é a política de origem além da credencial do broker.
+	AllowedProviders []string
 }
 
 // OIDC controla a validação de tokens emitidos pelo IdP externo.
@@ -118,6 +131,12 @@ func LoadFrom(lookup Lookup) (Config, error) {
 			WagerQueueURL:       r.required("SQS_WAGER_QUEUE_URL"),
 			WagerDLQURL:         r.required("SQS_WAGER_DLQ_URL"),
 			IntegrationQueueURL: r.required("SQS_INTEGRATION_QUEUE_URL"),
+			ConsumerEnabled:     r.bool("SQS_CONSUMER_ENABLED", true),
+			ConsumerName:        r.optional("SQS_CONSUMER_NAME", "wager-consumer"),
+			MaxMessages:         int32(r.integer("SQS_MAX_MESSAGES", 5, 1, 10)),
+			WaitTime:            r.duration("SQS_WAIT_TIME", 20*time.Second),
+			VisibilityTimeout:   r.duration("SQS_VISIBILITY_TIMEOUT", 30*time.Second),
+			AllowedProviders:    r.csv("WAGER_ALLOWED_PROVIDERS", "provider-a,provider-b"),
 		},
 		OIDC: OIDC{
 			IssuerURL:   r.required("OIDC_ISSUER_URL"),
@@ -222,6 +241,38 @@ func (r *reader) duration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func (r *reader) bool(key string, fallback bool) bool {
+	raw, ok := r.value(key)
+	if !ok {
+		return fallback
+	}
+	switch strings.ToLower(raw) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		r.problem("%s deve ser um booleano, recebido %q", key, raw)
+		return fallback
+	}
+}
+
+func (r *reader) csv(key, fallback string) []string {
+	raw := r.optional(key, fallback)
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		r.problem("%s deve listar ao menos um valor", key)
+	}
+	return out
 }
 
 func (r *reader) problem(format string, args ...any) {

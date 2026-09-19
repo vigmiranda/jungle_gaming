@@ -63,6 +63,7 @@ type fakeState struct {
 	wallets      map[string]walletRecord
 	transactions map[string]*wagering.Transaction
 	ledger       []ledger.Entry
+	inbox        map[string]port.InboxMessage
 
 	walletCreateErr error
 	walletLockErr   error
@@ -78,6 +79,9 @@ type fakeState struct {
 	ledgerAppendErr   error
 	ledgerSumErr      error
 	ledgerSumMoney    *money.Money
+	inboxFindErr      error
+	inboxRecordErr    error
+	inboxFindMisses   int
 }
 
 type walletRecord struct {
@@ -88,6 +92,7 @@ func newFakeUnitOfWork() *fakeUnitOfWork {
 	return &fakeUnitOfWork{state: &fakeState{
 		wallets:      map[string]walletRecord{},
 		transactions: map[string]*wagering.Transaction{},
+		inbox:        map[string]port.InboxMessage{},
 	}}
 }
 
@@ -122,12 +127,16 @@ func (s *fakeState) clone() *fakeState {
 		wallets:      make(map[string]walletRecord, len(s.wallets)),
 		transactions: make(map[string]*wagering.Transaction, len(s.transactions)),
 		ledger:       append([]ledger.Entry(nil), s.ledger...),
+		inbox:        make(map[string]port.InboxMessage, len(s.inbox)),
 	}
 	for key, value := range s.wallets {
 		copied.wallets[key] = value
 	}
 	for key, value := range s.transactions {
 		copied.transactions[key] = value
+	}
+	for key, value := range s.inbox {
+		copied.inbox[key] = value
 	}
 	return copied
 }
@@ -136,6 +145,7 @@ func (s *fakeState) restore(snapshot *fakeState) {
 	s.wallets = snapshot.wallets
 	s.transactions = snapshot.transactions
 	s.ledger = snapshot.ledger
+	s.inbox = snapshot.inbox
 }
 
 type fakeRepositories struct {
@@ -147,6 +157,42 @@ func (r *fakeRepositories) Transactions() port.TransactionRepository {
 	return &fakeTransactions{state: r.state}
 }
 func (r *fakeRepositories) Ledger() port.LedgerRepository { return &fakeLedger{state: r.state} }
+func (r *fakeRepositories) Inbox() port.InboxRepository   { return &fakeInbox{state: r.state} }
+
+type fakeInbox struct {
+	state *fakeState
+}
+
+func inboxKey(consumerName, messageID string) string {
+	return consumerName + "\x00" + messageID
+}
+
+func (r *fakeInbox) Record(_ context.Context, message port.InboxMessage) error {
+	if r.state.inboxRecordErr != nil {
+		return r.state.inboxRecordErr
+	}
+	key := inboxKey(message.ConsumerName, message.MessageID)
+	if _, exists := r.state.inbox[key]; exists {
+		return port.ErrConflict.Messagef("mensagem já registrada")
+	}
+	r.state.inbox[key] = message
+	return nil
+}
+
+func (r *fakeInbox) Find(_ context.Context, consumerName, messageID string) (port.InboxMessage, error) {
+	if r.state.inboxFindErr != nil {
+		return port.InboxMessage{}, r.state.inboxFindErr
+	}
+	if r.state.inboxFindMisses > 0 {
+		r.state.inboxFindMisses--
+		return port.InboxMessage{}, port.ErrNotFound.Messagef("mensagem %s", messageID)
+	}
+	found, ok := r.state.inbox[inboxKey(consumerName, messageID)]
+	if !ok {
+		return port.InboxMessage{}, port.ErrNotFound.Messagef("mensagem %s", messageID)
+	}
+	return found, nil
+}
 
 type fakeWallets struct {
 	state *fakeState

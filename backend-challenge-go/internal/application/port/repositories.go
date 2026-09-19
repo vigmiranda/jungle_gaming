@@ -24,6 +24,27 @@ type Repositories interface {
 	Wallets() WalletRepository
 	Transactions() TransactionRepository
 	Ledger() LedgerRepository
+	Inbox() InboxRepository
+}
+
+// InboxMessage é o registro de uma entrega at-least-once já tratada.
+type InboxMessage struct {
+	ID           shared.ID
+	ConsumerName string
+	MessageID    string
+	PayloadHash  string
+	ReceivedAt   time.Time
+}
+
+// InboxRepository deduplica entregas do broker na mesma transação do domínio.
+type InboxRepository interface {
+	// Record insere a mensagem. Devolve ErrConflict quando o par
+	// (consumer_name, message_id) já existe.
+	Record(ctx context.Context, message InboxMessage) error
+
+	// Find localiza uma entrega já registrada, para comparar o hash em
+	// reentregas.
+	Find(ctx context.Context, consumerName, messageID string) (InboxMessage, error)
 }
 
 // UnitOfWork delimita a transação SQL de uma operação financeira.

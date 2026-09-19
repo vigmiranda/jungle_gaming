@@ -116,6 +116,14 @@ func (r *authTestRepos) Transactions() port.TransactionRepository {
 	return authTestTransactions{tx: r.transaction}
 }
 func (r *authTestRepos) Ledger() port.LedgerRepository { return authTestLedger{} }
+func (r *authTestRepos) Inbox() port.InboxRepository   { return authTestInbox{} }
+
+type authTestInbox struct{}
+
+func (authTestInbox) Record(context.Context, port.InboxMessage) error { return nil }
+func (authTestInbox) Find(context.Context, string, string) (port.InboxMessage, error) {
+	return port.InboxMessage{}, port.ErrNotFound
+}
 
 type authTestWallets struct{}
 

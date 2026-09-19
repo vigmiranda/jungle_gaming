@@ -3,3 +3,7 @@ coverage.out
 coverage.html
 .env
 *.exe
+*.out
+cov
+cov.txt
+cover-app*
